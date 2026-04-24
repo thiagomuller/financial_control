@@ -1,0 +1,18 @@
+<div class="page-header">
+  <h1>Dashboard</h1>
+  <a class="btn btn-primary" routerLink="/bank-accounts">+ New Account</a>
+</div>
+
+<div *ngIf="loading" class="spinner"></div>
+<div *ngIf="error" class="error-msg">{{ error }}</div>
+
+<ng-container *ngIf="!loading">
+  <div *ngIf="summaries.length === 0" class="empty-state">
+    <p>You have no bank accounts yet.</p>
+    <a class="btn btn-primary" routerLink="/bank-accounts">Create your first account</a>
+  </div>
+
+  <div class="grid grid-2" *ngIf="summaries.length > 0">
+    <app-bank-account-card *ngFor="let s of summaries" [summary]="s"></app-bank-account-card>
+  </div>
+</ng-container>

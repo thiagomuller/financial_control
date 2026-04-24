@@ -1,0 +1,4 @@
+<app-nav *ngIf="showNav"></app-nav>
+<main [class.with-nav]="showNav">
+  <router-outlet></router-outlet>
+</main>

@@ -1,0 +1,6 @@
+.form-card { margin-bottom: 1.25rem; }
+.form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.form-row .form-group { flex: 1; min-width: 160px; }
+.tag-picker { display: flex; flex-wrap: wrap; gap: .4rem; }
+.tag-btn { padding: .25rem .65rem; border-radius: 999px; border: 1px solid var(--border); background: var(--bg); cursor: pointer; font-size: .8rem; transition: all .15s; }
+.tag-btn.selected { border-color: transparent; }

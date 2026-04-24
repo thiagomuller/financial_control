@@ -1,0 +1,15 @@
+.back-link { font-size: .85rem; color: var(--text-muted); display: block; margin-bottom: .25rem; }
+.account-header { display: flex; flex-direction: column; gap: .4rem; }
+.balance-badge { font-size: 1.6rem; font-weight: 800; color: var(--success); }
+.balance-badge.negative { color: var(--danger); }
+.edit-form { display: flex; align-items: center; gap: .5rem; }
+.edit-input { padding: .4rem .6rem; border: 1px solid var(--border); border-radius: var(--radius); font-size: .95rem; }
+.table-toolbar { display: flex; justify-content: space-between; align-items: center; margin-bottom: .75rem; }
+.table-toolbar h2 { font-size: 1.1rem; }
+.limit-select { display: flex; align-items: center; gap: .4rem; font-size: .85rem; color: var(--text-muted); }
+.limit-select select { padding: .25rem .5rem; border: 1px solid var(--border); border-radius: 4px; }
+.total-label { font-size: .8rem; color: var(--text-muted); margin-left: .5rem; }
+.upcoming-card { margin-top: 1.25rem; }
+.upcoming-card h2 { font-size: 1.1rem; margin-bottom: .75rem; }
+.upcoming-row-table td { font-style: italic; color: var(--text-muted); }
+.upcoming-row-table .amount-add, .upcoming-row-table .amount-subtract { font-style: normal; }

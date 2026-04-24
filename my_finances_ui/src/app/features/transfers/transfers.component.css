@@ -1,0 +1,3 @@
+.form-card { margin-bottom: 1.25rem; }
+.form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
+.form-row .form-group { flex: 1; min-width: 180px; }

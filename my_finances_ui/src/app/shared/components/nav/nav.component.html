@@ -1,0 +1,21 @@
+<nav class="navbar">
+  <a routerLink="/dashboard" class="brand">My Finances</a>
+
+  <div class="nav-links" [class.open]="menuOpen">
+    <a routerLink="/dashboard"     routerLinkActive="active">Dashboard</a>
+    <a routerLink="/bank-accounts" routerLinkActive="active">Accounts</a>
+    <a routerLink="/transactions"  routerLinkActive="active">Transactions</a>
+    <a routerLink="/transfers"     routerLinkActive="active">Transfers</a>
+    <a routerLink="/goals"         routerLinkActive="active">Goals</a>
+    <a routerLink="/incomes"       routerLinkActive="active">Incomes</a>
+    <a routerLink="/expenses"      routerLinkActive="active">Expenses</a>
+    <a routerLink="/tags"          routerLinkActive="active">Tags</a>
+  </div>
+
+  <div class="nav-user">
+    <span *ngIf="user" class="username">{{ user.name }}</span>
+    <button class="btn btn-secondary btn-sm" (click)="logout()">Logout</button>
+  </div>
+
+  <button class="hamburger" (click)="menuOpen = !menuOpen">&#9776;</button>
+</nav>

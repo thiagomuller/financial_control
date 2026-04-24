@@ -1,0 +1,53 @@
+version: "3.9"
+
+services:
+  my-finances-db:
+    image: postgres:latest
+    container_name: my-finances-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: my_finances
+      POSTGRES_USER: finances_user
+      POSTGRES_PASSWORD: finances_pass
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./db_data:/var/lib/postgresql:Z
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U finances_user -d my_finances"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  my-finances-api:
+    build:
+      context: ./my_finances_api
+      dockerfile: Dockerfile
+    container_name: my-finances-api
+    restart: unless-stopped
+    environment:
+      DB_HOST: my-finances-db
+      DB_PORT: 5432
+      DB_NAME: my_finances
+      DB_USER: finances_user
+      DB_PASSWORD: finances_pass
+      JWT_SECRET: change-me-in-production-use-a-long-random-secret
+      PORT: 8080
+    ports:
+      - "8080:8080"
+    depends_on:
+      my-finances-db:
+        condition: service_healthy
+
+  my-finances-ui:
+    build:
+      context: ./my_finances_ui
+      dockerfile: Dockerfile
+    container_name: my-finances-ui
+    restart: unless-stopped
+    environment:
+      API_URL: http://localhost:8080
+    ports:
+      - "4200:80"
+    depends_on:
+      - my-finances-api

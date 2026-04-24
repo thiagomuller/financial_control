@@ -1,0 +1,36 @@
+<div class="page-header">
+  <h1>Tags</h1>
+  <button class="btn btn-primary" (click)="showForm = !showForm">{{ showForm ? 'Cancel' : '+ New Tag' }}</button>
+</div>
+
+<div class="card form-card" *ngIf="showForm">
+  <form [formGroup]="form" (ngSubmit)="create()">
+    <div class="form-row">
+      <div class="form-group"><label>Name</label><input formControlName="name" placeholder="e.g. Food"></div>
+      <div class="form-group"><label>Color</label><input formControlName="color" type="color"></div>
+    </div>
+    <button class="btn btn-primary" type="submit" [disabled]="form.invalid">Create</button>
+  </form>
+</div>
+
+<div *ngIf="loading" class="spinner"></div>
+<div class="tags-grid" *ngIf="!loading">
+  <div class="empty-state" *ngIf="tags.length === 0"><p>No tags yet.</p></div>
+  <div class="tag-item card" *ngFor="let t of tags">
+    <ng-container *ngIf="editingId !== t.id">
+      <span class="tag-chip" [style.background]="t.color || '#64748b'">{{ t.name }}</span>
+      <div class="actions">
+        <button class="btn btn-secondary btn-sm" (click)="startEdit(t)">Edit</button>
+        <button class="btn btn-danger btn-sm" (click)="delete(t.id)">Delete</button>
+      </div>
+    </ng-container>
+    <ng-container *ngIf="editingId === t.id">
+      <form [formGroup]="editForm" (ngSubmit)="saveEdit(t.id)" class="inline-form">
+        <input formControlName="name" type="text">
+        <input formControlName="color" type="color">
+        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        <button class="btn btn-secondary btn-sm" type="button" (click)="editingId=null">Cancel</button>
+      </form>
+    </ng-container>
+  </div>
+</div>

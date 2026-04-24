@@ -1,0 +1,61 @@
+<div class="page-header">
+  <h1>Bank Accounts</h1>
+  <button class="btn btn-primary" (click)="showForm = !showForm">
+    {{ showForm ? 'Cancel' : '+ New Account' }}
+  </button>
+</div>
+
+<div class="card form-card" *ngIf="showForm">
+  <h2>New Bank Account</h2>
+  <form [formGroup]="form" (ngSubmit)="create()">
+    <div class="form-group">
+      <label>Name</label>
+      <input formControlName="name" type="text" placeholder="e.g. Checking Account">
+    </div>
+    <div class="form-group">
+      <label>Initial Balance</label>
+      <input formControlName="initialBalance" type="number" step="0.01" placeholder="0.00">
+    </div>
+    <div class="form-group">
+      <label>Icon (optional)</label>
+      <input type="file" accept="image/*" (change)="onIconFile($event)">
+    </div>
+    <div class="error-msg" *ngIf="error">{{ error }}</div>
+    <button class="btn btn-primary" type="submit" [disabled]="form.invalid">Create</button>
+  </form>
+</div>
+
+<div *ngIf="loading" class="spinner"></div>
+
+<div class="grid grid-2" *ngIf="!loading">
+  <div class="empty-state" *ngIf="accounts.length === 0">
+    <p>No bank accounts yet. Create one above.</p>
+  </div>
+
+  <div class="card account-item" *ngFor="let a of accounts">
+    <div class="account-row" *ngIf="editingId !== a.id">
+      <div class="account-info">
+        <img *ngIf="a.icon_url" [src]="a.icon_url" class="account-icon" alt="icon">
+        <div>
+          <strong>{{ a.name }}</strong>
+          <div [class]="a.balance < 0 ? 'balance-neg' : 'balance-pos'">
+            {{ a.balance | currency:'BRL':'symbol':'1.2-2' }}
+          </div>
+        </div>
+      </div>
+      <div class="actions">
+        <a class="btn btn-secondary btn-sm" [routerLink]="['/bank-accounts', a.id]">Statement</a>
+        <button class="btn btn-secondary btn-sm" (click)="startEdit(a)">Edit</button>
+        <button class="btn btn-danger btn-sm" (click)="delete(a.id)">Delete</button>
+      </div>
+    </div>
+
+    <div class="edit-row" *ngIf="editingId === a.id">
+      <form [formGroup]="editForm" (ngSubmit)="saveEdit(a.id)" class="inline-form">
+        <input formControlName="name" type="text">
+        <button class="btn btn-primary btn-sm" type="submit">Save</button>
+        <button class="btn btn-secondary btn-sm" type="button" (click)="editingId=null">Cancel</button>
+      </form>
+    </div>
+  </div>
+</div>

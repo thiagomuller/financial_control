@@ -1,0 +1,19 @@
+.account-card { display: flex; flex-direction: column; gap: .875rem; }
+.card-header { display: flex; align-items: center; gap: .75rem; }
+.account-icon img { width: 40px; height: 40px; border-radius: 8px; object-fit: cover; }
+.account-name { font-size: 1rem; font-weight: 700; }
+.balance { font-size: 1.4rem; font-weight: 800; color: var(--success); }
+.balance.negative { color: var(--danger); }
+
+.section-title { font-size: .8rem; font-weight: 600; color: var(--text-muted); text-transform: uppercase; letter-spacing: .05em; margin-bottom: .5rem; }
+
+.txn-row { display: flex; justify-content: space-between; align-items: center; padding: .3rem 0; border-bottom: 1px solid var(--border); font-size: .85rem; }
+.txn-row:last-child { border: none; }
+.txn-name { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+
+.upcoming-row { display: flex; align-items: center; gap: .5rem; padding: .25rem 0; font-size: .85rem; }
+.upcoming-name { flex: 1; }
+.upcoming-date { color: var(--text-muted); font-size: .8rem; }
+
+.muted { color: var(--text-muted); font-size: .85rem; font-style: italic; }
+.card-footer { margin-top: .5rem; }

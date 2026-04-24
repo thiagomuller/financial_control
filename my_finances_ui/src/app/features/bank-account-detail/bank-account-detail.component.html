@@ -1,0 +1,94 @@
+<div *ngIf="loading" class="spinner"></div>
+<div *ngIf="error" class="error-msg">{{ error }}</div>
+
+<ng-container *ngIf="statement && !loading">
+  <!-- Header -->
+  <div class="page-header">
+    <div class="account-header">
+      <a routerLink="/dashboard" class="back-link">← Dashboard</a>
+      <div *ngIf="!editMode">
+        <h1>{{ statement.account.name }}</h1>
+        <button class="btn btn-secondary btn-sm" (click)="startEdit()">Edit name</button>
+      </div>
+      <div *ngIf="editMode" class="edit-form">
+        <input [(ngModel)]="editName" class="edit-input">
+        <button class="btn btn-primary btn-sm" (click)="saveEdit()">Save</button>
+        <button class="btn btn-secondary btn-sm" (click)="editMode=false">Cancel</button>
+      </div>
+    </div>
+    <div class="balance-badge" [class.negative]="statement.account.balance < 0">
+      {{ statement.account.balance | currency:'BRL':'symbol':'1.2-2' }}
+    </div>
+  </div>
+
+  <!-- Transactions grid -->
+  <div class="card">
+    <div class="table-toolbar">
+      <h2>Transactions</h2>
+      <div class="limit-select">
+        Per page:
+        <select (change)="changeLimit(+$any($event.target).value)" [value]="limit">
+          <option *ngFor="let l of limitOptions" [value]="l">{{ l }}</option>
+        </select>
+      </div>
+    </div>
+
+    <div *ngIf="statement.transactions.data.length === 0" class="empty-state">
+      <p>No transactions yet</p>
+    </div>
+
+    <table *ngIf="statement.transactions.data.length > 0">
+      <thead>
+        <tr>
+          <th>Date</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Value</th>
+          <th>Tags</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let t of statement.transactions.data">
+          <td>{{ t.date | date:'MMM d, y' }}</td>
+          <td>{{ t.name }}</td>
+          <td><span [class]="'badge badge-' + t.operation">{{ t.operation }}</span></td>
+          <td [class]="'amount-' + t.operation">
+            {{ t.operation === 'add' ? '+' : '-' }}{{ t.value | currency:'BRL':'symbol':'1.2-2' }}
+          </td>
+          <td>
+            <span *ngFor="let tag of t.tags" class="tag-chip"
+                  [style.background]="tag.color || '#64748b'">{{ tag.name }}</span>
+          </td>
+        </tr>
+      </tbody>
+    </table>
+
+    <!-- Pagination -->
+    <div class="pagination" *ngIf="statement.transactions.pages > 1">
+      <button [disabled]="page === 1" (click)="goToPage(page - 1)">‹</button>
+      <button *ngFor="let p of pageNumbers()" [class.active]="p === page" (click)="goToPage(p)">{{ p }}</button>
+      <button [disabled]="page === statement.transactions.pages" (click)="goToPage(page + 1)">›</button>
+      <span class="total-label">{{ statement.transactions.total }} total</span>
+    </div>
+  </div>
+
+  <!-- Upcoming section -->
+  <div class="card upcoming-card" *ngIf="statement.upcoming?.length">
+    <h2>Upcoming</h2>
+    <table>
+      <thead>
+        <tr><th>Date</th><th>Name</th><th>Type</th><th>Value</th></tr>
+      </thead>
+      <tbody>
+        <tr *ngFor="let u of statement.upcoming" class="upcoming-row-table">
+          <td>{{ u.date | date:'MMM d, y' }}</td>
+          <td>{{ u.name }}</td>
+          <td><span class="badge">{{ upcomingLabel(u) }}</span></td>
+          <td [class]="'amount-' + u.operation">
+            {{ u.operation === 'add' ? '+' : '-' }}{{ u.value | currency:'BRL':'symbol':'1.2-2' }}
+          </td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+</ng-container>
