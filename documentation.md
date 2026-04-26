@@ -13,6 +13,7 @@
 9. [Recurring Transactions Scheduler](#9-recurring-transactions-scheduler)
 10. [Testing Strategy](#10-testing-strategy)
 11. [API Reference](#11-api-reference)
+12. [Milestone 2 Changes](#12-milestone-2-changes)
 
 ---
 
@@ -573,6 +574,7 @@ users
 ### Key Design Decisions
 
 - **UUID primary keys** via `gen_random_uuid()` from `pgcrypto`. No sequential IDs exposed in URLs — prevents enumeration attacks.
+- **`bank_accounts.icon_url` is `TEXT`** (changed from `VARCHAR(500)` in Milestone 2) — accommodates data URIs and long image URLs without truncation.
 - **`NUMERIC(18,2)` for monetary values** — exact decimal arithmetic, no floating point rounding.
 - **`TIMESTAMPTZ` for all timestamps** — stores in UTC, handles timezone-aware comparisons correctly.
 - **`ON DELETE CASCADE`** — deleting a user removes all their data; deleting a bank account removes its transactions.
@@ -608,6 +610,12 @@ All database queries use parameterised statements (`$1`, `$2`, etc.) — never s
 ### 8.4 CORS
 
 The API allows all origins (`Access-Control-Allow-Origin: *`) because it is intended to be used with a single known frontend. In a multi-tenant deployment this should be restricted to the frontend origin.
+
+### 8.5 Dark Theme (UI)
+
+The UI supports a toggleable dark/light theme. Theme state is controlled via a `data-theme` attribute on the `:root` element. All color values are CSS custom properties scoped to `:root[data-theme="dark"]` and `:root[data-theme="light"]`, so a single attribute change cascades the full color swap with no JavaScript DOM traversal.
+
+`ThemeService` (`core/services/theme.service.ts`) persists the selected theme to `localStorage` under the key `theme` so the preference survives page reloads. A color palette picker in the navigation bar lets the user switch between themes at runtime. On startup, the service reads `localStorage` and applies the stored theme before the first render to avoid a flash of unstyled content.
 
 ---
 
@@ -794,3 +802,62 @@ Returns `400 {"error":"insufficient balance"}` if the source account balance is 
 | Method | Path             | Response                                              |
 |--------|------------------|-------------------------------------------------------|
 | GET    | `/api/dashboard` | `{accounts, total_balance, tag_stats, upcoming_expenses, recent_transactions}` |
+
+---
+
+## 12. Milestone 2 Changes
+
+This section summarises the additions and fixes shipped in Milestone 2.
+
+### 12.1 Bug Fix: Bank Account Image Upload
+
+The `bank_accounts.icon_url` column was changed from `VARCHAR(500)` to `TEXT`. The previous limit caused failures when uploading base64-encoded image data URIs, which routinely exceed 500 characters. The update handler (`PUT /api/bank-accounts/{id}`) was also extended to support changing or removing the icon on an existing account — the `icon_url` field is now patched during updates, and sending an empty string clears the icon.
+
+### 12.2 Bug Fix: Bank Account Initial Balance Validation
+
+The create handler (`POST /api/bank-accounts`) now validates that `initial_balance >= 0`. Submitting a negative value returns `400 {"error": "initial_balance must be >= 0"}`. This prevents accounts from starting with an artificially negative balance, which would corrupt subsequent balance calculations.
+
+### 12.3 Dark Theme and Color Palette Picker
+
+A toggleable dark/light theme was added to the Angular UI. See Section 8.5 for the technical design. Key points:
+
+- All colors are CSS variables on `:root` switched via a `data-theme` attribute.
+- `ThemeService` reads and writes `localStorage` key `theme` for persistence.
+- A color palette picker control in the navigation bar lets users toggle themes without navigating away from the current page.
+
+### 12.4 Transfers in Bank Account Statement and Dashboard Summary
+
+Transfers were previously excluded from the bank account statement and dashboard recent-transactions views. In Milestone 2, the statement and dashboard queries use a `UNION` approach that merges rows from both the `transactions` and `transfers` tables, ordered by date, so outgoing and incoming transfers appear inline alongside regular transactions. Each row carries a `type` discriminator (`"transaction"` or `"transfer"`) so the frontend can render the correct icon and label.
+
+### 12.5 Makefiles
+
+Both the API and UI directories now have a `Makefile` with the following targets:
+
+| Target        | Description                                      |
+|---------------|--------------------------------------------------|
+| `lint`        | Run the language linter (golangci-lint / ESLint) |
+| `trivy`       | Trivy filesystem/source scan for vulnerabilities |
+| `trivy-image` | Trivy scan of the built container image          |
+| `test`        | Run the test suite                               |
+| `build`       | Build the binary / production bundle             |
+| `all`         | Run lint, trivy, test, and build in sequence     |
+
+Running `make all` from either project directory gives a full quality gate before deployment.
+
+### 12.6 End-to-End Tests (Playwright)
+
+A Playwright E2E test suite was added under `e2e/`. The tests run against the full compose stack (API + UI + database) and cover the critical user journeys:
+
+- User registration and login.
+- Creating, editing, and deleting a bank account.
+- Creating transactions and verifying balance updates.
+- Creating a transfer between two accounts.
+
+Tests are executed with:
+
+```bash
+cd e2e
+npx playwright test
+```
+
+The suite runs in headed or headless mode and targets the local nginx URL (`http://localhost`). CI configuration can point `BASE_URL` to any environment.
