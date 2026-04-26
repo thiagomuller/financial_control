@@ -4,12 +4,20 @@ import { BankAccountService } from '../../core/services/bank-account.service';
 import { provideRouter, ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
-import { StatementResponse } from '../../core/models/models';
+import { StatementResponse, FeedEntry } from '../../core/models/models';
 
 const mockStatement: StatementResponse = {
-  account: { id: 'acc1', user_id: 'u1', name: 'My Account', balance: 1000, icon_url: null, created_at: '', updated_at: '' },
+  account: {
+    id: 'acc1',
+    user_id: 'u1',
+    name: 'My Account',
+    balance: 1000,
+    icon_url: null,
+    created_at: '',
+    updated_at: '',
+  },
   transactions: { data: [], total: 0, page: 1, limit: 20, pages: 0 },
-  upcoming: []
+  upcoming: [],
 };
 
 describe('BankAccountDetailComponent', () => {
@@ -27,8 +35,8 @@ describe('BankAccountDetailComponent', () => {
         provideRouter([]),
         provideHttpClient(),
         { provide: BankAccountService, useValue: bankSpy },
-        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'acc1' } } } }
-      ]
+        { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'acc1' } } } },
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(BankAccountDetailComponent);
@@ -52,9 +60,31 @@ describe('BankAccountDetailComponent', () => {
   });
 
   it('should not navigate past last page', () => {
-    component.statement = { ...mockStatement, transactions: { ...mockStatement.transactions, pages: 3 } };
+    component.statement = {
+      ...mockStatement,
+      transactions: { ...mockStatement.transactions, pages: 3 },
+    };
     component.page = 3;
     component.goToPage(4);
     expect(component.page).toBe(3);
+  });
+
+  it('should display transfer entries in the statement', () => {
+    const transferEntry: FeedEntry = {
+      id: 't1',
+      name: 'Savings transfer',
+      value: 200,
+      operation: 'subtract',
+      date: '2026-04-01T00:00:00Z',
+      kind: 'transfer',
+    };
+    component.statement = {
+      ...mockStatement,
+      transactions: { data: [transferEntry], total: 1, page: 1, limit: 20, pages: 1 },
+    };
+    fixture.detectChanges();
+    const badge = fixture.nativeElement.querySelector('.badge-transfer');
+    expect(badge).toBeTruthy();
+    expect(badge.textContent.trim()).toBe('Transfer');
   });
 });
