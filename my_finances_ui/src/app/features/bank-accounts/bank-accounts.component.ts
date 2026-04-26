@@ -10,7 +10,7 @@ import { BankAccount } from '../../core/models/models';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule, RouterLink],
   templateUrl: './bank-accounts.component.html',
-  styleUrl: './bank-accounts.component.css'
+  styleUrl: './bank-accounts.component.css',
 })
 export class BankAccountsComponent implements OnInit {
   private svc = inject(BankAccountService);
@@ -24,38 +24,61 @@ export class BankAccountsComponent implements OnInit {
 
   form = this.fb.group({
     name: ['', Validators.required],
-    initialBalance: [0],
-    iconUrl: ['']
+    initialBalance: [0, Validators.min(0)],
+    iconUrl: [''],
   });
 
-  editForm = this.fb.group({ name: ['', Validators.required] });
+  editForm = this.fb.group({
+    name: ['', Validators.required],
+    iconUrl: [''],
+  });
 
-  ngOnInit(): void { this.load(); }
+  ngOnInit(): void {
+    this.load();
+  }
 
   load(): void {
     this.loading = true;
-    this.svc.list().subscribe({ next: a => { this.accounts = a ?? []; this.loading = false; }, error: () => this.loading = false });
+    this.svc.list().subscribe({
+      next: (a) => {
+        this.accounts = a ?? [];
+        this.loading = false;
+      },
+      error: () => (this.loading = false),
+    });
   }
 
   create(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
     this.svc.create(v.name!, v.initialBalance ?? 0, v.iconUrl || undefined).subscribe({
-      next: () => { this.showForm = false; this.form.reset({ initialBalance: 0 }); this.load(); },
-      error: (e) => this.error = e.error?.error ?? 'Failed to create'
+      next: () => {
+        this.showForm = false;
+        this.form.reset({ initialBalance: 0 });
+        this.load();
+      },
+      error: (e) => (this.error = e.error?.error ?? 'Failed to create'),
     });
   }
 
   startEdit(a: BankAccount): void {
     this.editingId = a.id;
-    this.editForm.setValue({ name: a.name });
+    this.editForm.setValue({ name: a.name, iconUrl: a.icon_url ?? '' });
   }
 
   saveEdit(id: string): void {
     if (this.editForm.invalid) return;
-    this.svc.update(id, this.editForm.value.name!).subscribe({
-      next: () => { this.editingId = null; this.load(); }
+    const v = this.editForm.value;
+    this.svc.update(id, v.name!, v.iconUrl || undefined).subscribe({
+      next: () => {
+        this.editingId = null;
+        this.load();
+      },
     });
+  }
+
+  removeEditIcon(): void {
+    this.editForm.patchValue({ iconUrl: '' });
   }
 
   delete(id: string): void {
@@ -68,6 +91,14 @@ export class BankAccountsComponent implements OnInit {
     if (!file) return;
     const reader = new FileReader();
     reader.onload = () => this.form.patchValue({ iconUrl: reader.result as string });
+    reader.readAsDataURL(file);
+  }
+
+  onEditIconFile(e: Event): void {
+    const file = (e.target as HTMLInputElement).files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => this.editForm.patchValue({ iconUrl: reader.result as string });
     reader.readAsDataURL(file);
   }
 }

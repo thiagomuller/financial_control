@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
     user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     name       VARCHAR(255) NOT NULL,
     balance    NUMERIC(18,2) NOT NULL DEFAULT 0,
-    icon_url   VARCHAR(500),
+    icon_url   TEXT,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -110,6 +110,9 @@ CREATE TABLE IF NOT EXISTS expenses (
 `
 
 func RunMigrations(db *sql.DB) error {
-	_, err := db.Exec(schema)
+	if _, err := db.Exec(schema); err != nil {
+		return err
+	}
+	_, err := db.Exec(`ALTER TABLE bank_accounts ALTER COLUMN icon_url TYPE TEXT`)
 	return err
 }

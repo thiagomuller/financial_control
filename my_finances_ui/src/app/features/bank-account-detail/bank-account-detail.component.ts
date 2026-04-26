@@ -10,7 +10,7 @@ import { StatementResponse, UpcomingItem } from '../../core/models/models';
   standalone: true,
   imports: [CommonModule, RouterLink, FormsModule],
   templateUrl: './bank-account-detail.component.html',
-  styleUrl: './bank-account-detail.component.css'
+  styleUrl: './bank-account-detail.component.css',
 })
 export class BankAccountDetailComponent implements OnInit {
   private route = inject(ActivatedRoute);
@@ -36,8 +36,14 @@ export class BankAccountDetailComponent implements OnInit {
   load(): void {
     this.loading = true;
     this.bankSvc.statement(this.id, this.page, this.limit).subscribe({
-      next: (s) => { this.statement = s; this.loading = false; },
-      error: () => { this.error = 'Failed to load statement.'; this.loading = false; }
+      next: (s) => {
+        this.statement = s;
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'Failed to load statement.';
+        this.loading = false;
+      },
     });
   }
 
@@ -75,12 +81,16 @@ export class BankAccountDetailComponent implements OnInit {
       next: (a) => {
         if (this.statement) this.statement.account = a;
         this.editMode = false;
-      }
+      },
     });
   }
 
   upcomingLabel(item: UpcomingItem): string {
-    const labels: Record<string, string> = { income: 'Income', expense: 'Expense', goal_transfer: 'Goal' };
+    const labels: Record<string, string> = {
+      income: 'Income',
+      expense: 'Expense',
+      goal_transfer: 'Goal',
+    };
     return labels[item.type] ?? item.type;
   }
 }

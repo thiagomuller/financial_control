@@ -2,6 +2,7 @@ package handlers
 
 import (
 	"database/sql"
+	"encoding/base64"
 	"math"
 	"net/http"
 	"strings"
@@ -51,6 +52,24 @@ func (h *Handler) createBankAccount(w http.ResponseWriter, r *http.Request) {
 	if req.Name == "" {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
+	}
+
+	if req.InitialBalance < 0 {
+		writeError(w, http.StatusBadRequest, "initial_balance must be zero or positive")
+		return
+	}
+
+	if req.IconURL != nil {
+		const maxDecodedBytes = 5 * 1024 * 1024
+		raw := *req.IconURL
+		if idx := strings.Index(raw, ","); idx != -1 {
+			raw = raw[idx+1:]
+		}
+		decoded, err := base64.StdEncoding.DecodeString(raw)
+		if err == nil && len(decoded) > maxDecodedBytes {
+			writeError(w, http.StatusRequestEntityTooLarge, "icon image exceeds 5MB limit")
+			return
+		}
 	}
 
 	var a models.BankAccount
@@ -160,13 +179,22 @@ func (h *Handler) getBankAccountStatement(w http.ResponseWriter, r *http.Request
 
 	var total int
 	h.db.QueryRowContext(r.Context(),
-		`SELECT COUNT(*) FROM transactions WHERE bank_account_id=$1 AND user_id=$2`,
+		`SELECT COUNT(*) FROM (
+		   SELECT id FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+		   UNION ALL
+		   SELECT id FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2
+		 ) combined`,
 		id, userID,
 	).Scan(&total)
 
 	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT id, user_id, bank_account_id, name, value, operation, date, created_at, updated_at
-		 FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+		`SELECT id, name, value, operation, date, 'transaction' AS kind
+		   FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+		 UNION ALL
+		 SELECT id, name, value,
+		   CASE WHEN source_account_id=$1 THEN 'subtract' ELSE 'add' END,
+		   date, 'transfer' AS kind
+		   FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2
 		 ORDER BY date DESC LIMIT $3 OFFSET $4`,
 		id, userID, limit, offset,
 	)
@@ -176,24 +204,25 @@ func (h *Handler) getBankAccountStatement(w http.ResponseWriter, r *http.Request
 	}
 	defer rows.Close()
 
-	txns := []models.Transaction{}
+	feed := []models.FeedEntry{}
 	for rows.Next() {
-		var t models.Transaction
-		if err := rows.Scan(&t.ID, &t.UserID, &t.BankAccountID, &t.Name, &t.Value,
-			&t.Operation, &t.Date, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		var f models.FeedEntry
+		if err := rows.Scan(&f.ID, &f.Name, &f.Value, &f.Operation, &f.Date, &f.Kind); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
-		t.Tags = h.fetchTransactionTags(r, t.ID)
-		txns = append(txns, t)
+		if f.Kind == "transaction" {
+			f.Tags = h.fetchTransactionTags(r, f.ID)
+		}
+		feed = append(feed, f)
 	}
 
 	upcoming := h.buildUpcoming(r, id, userID)
 
 	resp := models.StatementResponse{
 		Account: account,
-		Transactions: models.PaginatedResponse[models.Transaction]{
-			Data:  txns,
+		Transactions: models.PaginatedResponse[models.FeedEntry]{
+			Data:  feed,
 			Total: total,
 			Page:  page,
 			Limit: limit,

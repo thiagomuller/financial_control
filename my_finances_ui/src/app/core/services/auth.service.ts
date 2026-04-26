@@ -12,15 +12,20 @@ export class AuthService {
   private router = inject(Router);
 
   login(username: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>('/api/auth/login', { username, password }).pipe(
-      tap(r => localStorage.setItem(TOKEN_KEY, r.token))
-    );
+    return this.http
+      .post<AuthResponse>('/api/auth/login', { username, password })
+      .pipe(tap((r) => localStorage.setItem(TOKEN_KEY, r.token)));
   }
 
-  register(name: string, username: string, email: string, password: string): Observable<AuthResponse> {
-    return this.http.post<AuthResponse>('/api/auth/register', { name, username, email, password }).pipe(
-      tap(r => localStorage.setItem(TOKEN_KEY, r.token))
-    );
+  register(
+    name: string,
+    username: string,
+    email: string,
+    password: string,
+  ): Observable<AuthResponse> {
+    return this.http
+      .post<AuthResponse>('/api/auth/register', { name, username, email, password })
+      .pipe(tap((r) => localStorage.setItem(TOKEN_KEY, r.token)));
   }
 
   logout(): void {

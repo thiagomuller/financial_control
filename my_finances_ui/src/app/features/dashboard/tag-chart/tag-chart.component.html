@@ -1,15 +1,27 @@
 <div class="chart-wrap" *ngIf="segments.length > 0; else noTags">
   <svg viewBox="0 0 42 42" class="donut" aria-label="Tag distribution chart">
-    <circle class="donut-hole" cx="21" cy="21" r="15.9" fill="#f1f5f9"/>
-    <circle class="donut-ring" cx="21" cy="21" r="15.9" fill="transparent"
-            stroke="#e2e8f0" stroke-width="3.5"/>
-    <circle *ngFor="let s of segments"
-            cx="21" cy="21" r="15.9" fill="transparent"
-            [attr.stroke]="s.color"
-            stroke-width="3.5"
-            [attr.stroke-dasharray]="s.dasharray"
-            [attr.stroke-dashoffset]="s.dashoffset"
-            stroke-linecap="butt"/>
+    <circle class="donut-hole" cx="21" cy="21" r="15.9" fill="#f1f5f9" />
+    <circle
+      class="donut-ring"
+      cx="21"
+      cy="21"
+      r="15.9"
+      fill="transparent"
+      stroke="#e2e8f0"
+      stroke-width="3.5"
+    />
+    <circle
+      *ngFor="let s of segments"
+      cx="21"
+      cy="21"
+      r="15.9"
+      fill="transparent"
+      [attr.stroke]="s.color"
+      stroke-width="3.5"
+      [attr.stroke-dasharray]="s.dasharray"
+      [attr.stroke-dashoffset]="s.dashoffset"
+      stroke-linecap="butt"
+    />
     <text x="21" y="21" text-anchor="middle" dy=".35em" class="donut-label">{{ total }}</text>
   </svg>
   <div class="legend">

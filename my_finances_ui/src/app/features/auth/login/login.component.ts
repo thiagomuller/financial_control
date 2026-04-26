@@ -9,7 +9,7 @@ import { AuthService } from '../../../core/services/auth.service';
   standalone: true,
   imports: [ReactiveFormsModule, CommonModule, RouterLink],
   templateUrl: './login.component.html',
-  styleUrl: './login.component.css'
+  styleUrl: './login.component.css',
 })
 export class LoginComponent {
   private fb = inject(FormBuilder);
@@ -18,7 +18,7 @@ export class LoginComponent {
 
   form = this.fb.group({
     username: ['', Validators.required],
-    password: ['', Validators.required]
+    password: ['', Validators.required],
   });
 
   error = '';
@@ -34,7 +34,7 @@ export class LoginComponent {
       error: (err) => {
         this.error = err.error?.error ?? 'Login failed. Check your credentials.';
         this.loading = false;
-      }
+      },
     });
   }
 }

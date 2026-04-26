@@ -10,7 +10,7 @@ import { Goal, BankAccount } from '../../core/models/models';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './goals.component.html',
-  styleUrl: './goals.component.css'
+  styleUrl: './goals.component.css',
 })
 export class GoalsComponent implements OnInit {
   private svc = inject(GoalService);
@@ -32,27 +32,46 @@ export class GoalsComponent implements OnInit {
     end_date: ['', Validators.required],
     interval_days: [30, [Validators.required, Validators.min(1)]],
     source_account_id: ['', Validators.required],
-    target_account_id: ['', Validators.required]
+    target_account_id: ['', Validators.required],
   });
 
   ngOnInit(): void {
-    this.bankSvc.list().subscribe(a => this.accounts = a ?? []);
+    this.bankSvc.list().subscribe((a) => (this.accounts = a ?? []));
     this.load();
   }
 
-  load(): void { this.loading = true; this.svc.list().subscribe({ next: g => { this.goals = g ?? []; this.loading = false; }, error: () => this.loading = false }); }
+  load(): void {
+    this.loading = true;
+    this.svc.list().subscribe({
+      next: (g) => {
+        this.goals = g ?? [];
+        this.loading = false;
+      },
+      error: () => (this.loading = false),
+    });
+  }
 
   create(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
-    this.svc.create({
-      name: v.name!, target_value: v.target_value!,
-      start_date: new Date(v.start_date!).toISOString(), end_date: new Date(v.end_date!).toISOString(),
-      interval_days: v.interval_days!, source_account_id: v.source_account_id!, target_account_id: v.target_account_id!
-    }).subscribe({
-      next: () => { this.showForm = false; this.form.reset({ start_date: this.today, interval_days: 30 }); this.load(); },
-      error: e => this.error = e.error?.error ?? 'Failed'
-    });
+    this.svc
+      .create({
+        name: v.name!,
+        target_value: v.target_value!,
+        start_date: new Date(v.start_date!).toISOString(),
+        end_date: new Date(v.end_date!).toISOString(),
+        interval_days: v.interval_days!,
+        source_account_id: v.source_account_id!,
+        target_account_id: v.target_account_id!,
+      })
+      .subscribe({
+        next: () => {
+          this.showForm = false;
+          this.form.reset({ start_date: this.today, interval_days: 30 });
+          this.load();
+        },
+        error: (e) => (this.error = e.error?.error ?? 'Failed'),
+      });
   }
 
   delete(id: string): void {
@@ -60,7 +79,9 @@ export class GoalsComponent implements OnInit {
     this.svc.delete(id).subscribe({ next: () => this.load() });
   }
 
-  accountName(id: string): string { return this.accounts.find(a => a.id === id)?.name ?? id.slice(0, 8) + '…'; }
+  accountName(id: string): string {
+    return this.accounts.find((a) => a.id === id)?.name ?? id.slice(0, 8) + '…';
+  }
 
   perTransfer(g: Goal): number {
     const days = (new Date(g.end_date).getTime() - new Date(g.start_date).getTime()) / 86400000;

@@ -11,7 +11,6 @@ import (
 func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserID(r)
 
-	// Load all bank accounts for the user
 	accRows, err := h.db.QueryContext(r.Context(),
 		`SELECT id, user_id, name, balance, icon_url, created_at, updated_at
 		 FROM bank_accounts WHERE user_id=$1 ORDER BY name`, userID,
@@ -31,29 +30,33 @@ func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 
 	summaries := make([]models.BankAccountSummary, 0, len(accounts))
 	now := time.Now()
-	horizon := now.AddDate(0, 1, 0) // next month for upcoming expenses
+	horizon := now.AddDate(0, 1, 0)
 
 	for _, account := range accounts {
-		// Latest 3 transactions
-		txnRows, err := h.db.QueryContext(r.Context(),
-			`SELECT id, user_id, bank_account_id, name, value, operation, date, created_at, updated_at
-			 FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+		feedRows, err := h.db.QueryContext(r.Context(),
+			`SELECT id, name, value, operation, date, 'transaction' AS kind
+			   FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+			 UNION ALL
+			 SELECT id, name, value,
+			   CASE WHEN source_account_id=$1 THEN 'subtract' ELSE 'add' END,
+			   date, 'transfer' AS kind
+			   FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2
 			 ORDER BY date DESC LIMIT 3`,
 			account.ID, userID,
 		)
-		var txns []models.Transaction
+		var feed []models.FeedEntry
 		if err == nil {
-			defer txnRows.Close()
-			for txnRows.Next() {
-				var t models.Transaction
-				txnRows.Scan(&t.ID, &t.UserID, &t.BankAccountID, &t.Name, &t.Value,
-					&t.Operation, &t.Date, &t.CreatedAt, &t.UpdatedAt)
-				t.Tags = h.fetchTransactionTags(r, t.ID)
-				txns = append(txns, t)
+			defer feedRows.Close()
+			for feedRows.Next() {
+				var f models.FeedEntry
+				feedRows.Scan(&f.ID, &f.Name, &f.Value, &f.Operation, &f.Date, &f.Kind)
+				if f.Kind == "transaction" {
+					f.Tags = h.fetchTransactionTags(r, f.ID)
+				}
+				feed = append(feed, f)
 			}
 		}
 
-		// Tag stats — count transactions per tag for this account
 		tagRows, _ := h.db.QueryContext(r.Context(),
 			`SELECT t.id, t.user_id, t.name, t.color, t.created_at, t.updated_at, COUNT(tt.tag_id) AS cnt
 			 FROM tags t
@@ -74,7 +77,6 @@ func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 			}
 		}
 
-		// Upcoming expenses for this account (next 30 days)
 		var upcoming []models.UpcomingItem
 		expRows, _ := h.db.QueryContext(r.Context(),
 			`SELECT name, value, repeatable_day FROM expenses
@@ -98,7 +100,7 @@ func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 
 		summaries = append(summaries, models.BankAccountSummary{
 			Account:            account,
-			LatestTransactions: txns,
+			LatestTransactions: feed,
 			TagStats:           tagStats,
 			UpcomingExpenses:   upcoming,
 		})

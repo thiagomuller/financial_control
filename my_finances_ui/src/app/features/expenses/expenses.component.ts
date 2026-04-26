@@ -10,7 +10,7 @@ import { Expense, BankAccount } from '../../core/models/models';
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './expenses.component.html',
-  styleUrl: './expenses.component.css'
+  styleUrl: './expenses.component.css',
 })
 export class ExpensesComponent implements OnInit {
   private svc = inject(ExpenseService);
@@ -27,23 +27,43 @@ export class ExpensesComponent implements OnInit {
     name: ['', Validators.required],
     value: [0, [Validators.required, Validators.min(0.01)]],
     bank_account_id: ['', Validators.required],
-    repeatable_day: [1, [Validators.required, Validators.min(1), Validators.max(31)]]
+    repeatable_day: [1, [Validators.required, Validators.min(1), Validators.max(31)]],
   });
 
   ngOnInit(): void {
-    this.bankSvc.list().subscribe(a => this.accounts = a ?? []);
+    this.bankSvc.list().subscribe((a) => (this.accounts = a ?? []));
     this.load();
   }
 
-  load(): void { this.loading = true; this.svc.list().subscribe({ next: e => { this.expenses = e ?? []; this.loading = false; }, error: () => this.loading = false }); }
+  load(): void {
+    this.loading = true;
+    this.svc.list().subscribe({
+      next: (e) => {
+        this.expenses = e ?? [];
+        this.loading = false;
+      },
+      error: () => (this.loading = false),
+    });
+  }
 
   create(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
-    this.svc.create({ name: v.name!, value: v.value!, bank_account_id: v.bank_account_id!, repeatable_day: v.repeatable_day! }).subscribe({
-      next: () => { this.showForm = false; this.form.reset({ repeatable_day: 1 }); this.load(); },
-      error: e => this.error = e.error?.error ?? 'Failed'
-    });
+    this.svc
+      .create({
+        name: v.name!,
+        value: v.value!,
+        bank_account_id: v.bank_account_id!,
+        repeatable_day: v.repeatable_day!,
+      })
+      .subscribe({
+        next: () => {
+          this.showForm = false;
+          this.form.reset({ repeatable_day: 1 });
+          this.load();
+        },
+        error: (e) => (this.error = e.error?.error ?? 'Failed'),
+      });
   }
 
   delete(id: string): void {
@@ -51,5 +71,7 @@ export class ExpensesComponent implements OnInit {
     this.svc.delete(id).subscribe({ next: () => this.load() });
   }
 
-  accountName(id: string): string { return this.accounts.find(a => a.id === id)?.name ?? '…'; }
+  accountName(id: string): string {
+    return this.accounts.find((a) => a.id === id)?.name ?? '…';
+  }
 }

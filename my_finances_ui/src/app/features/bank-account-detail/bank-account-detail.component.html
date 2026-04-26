@@ -11,13 +11,13 @@
         <button class="btn btn-secondary btn-sm" (click)="startEdit()">Edit name</button>
       </div>
       <div *ngIf="editMode" class="edit-form">
-        <input [(ngModel)]="editName" class="edit-input">
+        <input [(ngModel)]="editName" class="edit-input" />
         <button class="btn btn-primary btn-sm" (click)="saveEdit()">Save</button>
-        <button class="btn btn-secondary btn-sm" (click)="editMode=false">Cancel</button>
+        <button class="btn btn-secondary btn-sm" (click)="editMode = false">Cancel</button>
       </div>
     </div>
     <div class="balance-badge" [class.negative]="statement.account.balance < 0">
-      {{ statement.account.balance | currency:'BRL':'symbol':'1.2-2' }}
+      {{ statement.account.balance | currency: 'BRL' : 'symbol' : '1.2-2' }}
     </div>
   </div>
 
@@ -49,15 +49,25 @@
       </thead>
       <tbody>
         <tr *ngFor="let t of statement.transactions.data">
-          <td>{{ t.date | date:'MMM d, y' }}</td>
+          <td>{{ t.date | date: 'MMM d, y' }}</td>
           <td>{{ t.name }}</td>
-          <td><span [class]="'badge badge-' + t.operation">{{ t.operation }}</span></td>
+          <td>
+            <span *ngIf="t.kind === 'transfer'" class="badge badge-transfer">Transfer</span>
+            <span *ngIf="t.kind !== 'transfer'" [class]="'badge badge-' + t.operation">{{
+              t.operation
+            }}</span>
+          </td>
           <td [class]="'amount-' + t.operation">
-            {{ t.operation === 'add' ? '+' : '-' }}{{ t.value | currency:'BRL':'symbol':'1.2-2' }}
+            {{ t.operation === 'add' ? '+' : '-'
+            }}{{ t.value | currency: 'BRL' : 'symbol' : '1.2-2' }}
           </td>
           <td>
-            <span *ngFor="let tag of t.tags" class="tag-chip"
-                  [style.background]="tag.color || '#64748b'">{{ tag.name }}</span>
+            <span
+              *ngFor="let tag of t.tags"
+              class="tag-chip"
+              [style.background]="tag.color || '#64748b'"
+              >{{ tag.name }}</span
+            >
           </td>
         </tr>
       </tbody>
@@ -66,8 +76,12 @@
     <!-- Pagination -->
     <div class="pagination" *ngIf="statement.transactions.pages > 1">
       <button [disabled]="page === 1" (click)="goToPage(page - 1)">‹</button>
-      <button *ngFor="let p of pageNumbers()" [class.active]="p === page" (click)="goToPage(p)">{{ p }}</button>
-      <button [disabled]="page === statement.transactions.pages" (click)="goToPage(page + 1)">›</button>
+      <button *ngFor="let p of pageNumbers()" [class.active]="p === page" (click)="goToPage(p)">
+        {{ p }}
+      </button>
+      <button [disabled]="page === statement.transactions.pages" (click)="goToPage(page + 1)">
+        ›
+      </button>
       <span class="total-label">{{ statement.transactions.total }} total</span>
     </div>
   </div>
@@ -77,15 +91,23 @@
     <h2>Upcoming</h2>
     <table>
       <thead>
-        <tr><th>Date</th><th>Name</th><th>Type</th><th>Value</th></tr>
+        <tr>
+          <th>Date</th>
+          <th>Name</th>
+          <th>Type</th>
+          <th>Value</th>
+        </tr>
       </thead>
       <tbody>
         <tr *ngFor="let u of statement.upcoming" class="upcoming-row-table">
-          <td>{{ u.date | date:'MMM d, y' }}</td>
+          <td>{{ u.date | date: 'MMM d, y' }}</td>
           <td>{{ u.name }}</td>
-          <td><span class="badge">{{ upcomingLabel(u) }}</span></td>
+          <td>
+            <span class="badge">{{ upcomingLabel(u) }}</span>
+          </td>
           <td [class]="'amount-' + u.operation">
-            {{ u.operation === 'add' ? '+' : '-' }}{{ u.value | currency:'BRL':'symbol':'1.2-2' }}
+            {{ u.operation === 'add' ? '+' : '-'
+            }}{{ u.value | currency: 'BRL' : 'symbol' : '1.2-2' }}
           </td>
         </tr>
       </tbody>

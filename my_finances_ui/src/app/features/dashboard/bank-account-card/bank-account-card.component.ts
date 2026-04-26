@@ -9,7 +9,7 @@ import { TagChartComponent } from '../tag-chart/tag-chart.component';
   standalone: true,
   imports: [CommonModule, RouterLink, TagChartComponent],
   templateUrl: './bank-account-card.component.html',
-  styleUrl: './bank-account-card.component.css'
+  styleUrl: './bank-account-card.component.css',
 })
 export class BankAccountCardComponent {
   @Input() summary!: BankAccountSummary;

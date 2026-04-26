@@ -1,28 +1,37 @@
 <div class="card account-card">
   <div class="card-header">
     <div class="account-icon" *ngIf="summary.account.icon_url">
-      <img [src]="summary.account.icon_url" alt="icon">
+      <img [src]="summary.account.icon_url" alt="icon" />
     </div>
     <div class="account-info">
       <h3 class="account-name">{{ summary.account.name }}</h3>
       <div class="balance" [class.negative]="summary.account.balance < 0">
-        {{ summary.account.balance | currency:'BRL':'symbol':'1.2-2' }}
+        {{ summary.account.balance | currency: 'BRL' : 'symbol' : '1.2-2' }}
       </div>
     </div>
   </div>
 
-  <!-- Latest 3 transactions -->
+  <!-- Latest 3 feed entries (transactions + transfers) -->
   <div class="section">
-    <h4 class="section-title">Recent Transactions</h4>
+    <h4 class="section-title">Recent Activity</h4>
     <div *ngIf="summary.latest_transactions?.length; else noTxns">
       <div class="txn-row" *ngFor="let t of summary.latest_transactions">
-        <span class="txn-name">{{ t.name }}</span>
+        <span class="txn-name">
+          {{ t.name }}
+          <span
+            *ngIf="t.kind === 'transfer'"
+            class="badge badge-transfer"
+            style="margin-left: 0.3rem"
+            >Transfer</span
+          >
+        </span>
         <span [class]="'txn-value amount-' + t.operation">
-          {{ t.operation === 'add' ? '+' : '-' }}{{ t.value | currency:'BRL':'symbol':'1.2-2' }}
+          {{ t.operation === 'add' ? '+' : '-'
+          }}{{ t.value | currency: 'BRL' : 'symbol' : '1.2-2' }}
         </span>
       </div>
     </div>
-    <ng-template #noTxns><p class="muted">No transactions yet</p></ng-template>
+    <ng-template #noTxns><p class="muted">No activity yet</p></ng-template>
   </div>
 
   <!-- Tag chart -->
@@ -36,8 +45,10 @@
     <h4 class="section-title">Upcoming Expenses</h4>
     <div class="upcoming-row" *ngFor="let u of summary.upcoming_expenses">
       <span class="upcoming-name">{{ u.name }}</span>
-      <span class="upcoming-date">{{ u.date | date:'MMM d' }}</span>
-      <span class="upcoming-value amount-subtract">-{{ u.value | currency:'BRL':'symbol':'1.2-2' }}</span>
+      <span class="upcoming-date">{{ u.date | date: 'MMM d' }}</span>
+      <span class="upcoming-value amount-subtract"
+        >-{{ u.value | currency: 'BRL' : 'symbol' : '1.2-2' }}</span
+      >
     </div>
   </div>
 

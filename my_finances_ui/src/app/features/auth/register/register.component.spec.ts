@@ -20,7 +20,7 @@ describe('RegisterComponent', () => {
         provideRouter([]),
         provideHttpClient(),
         { provide: AuthService, useValue: authSpy },
-      ]
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(RegisterComponent);
@@ -33,17 +33,35 @@ describe('RegisterComponent', () => {
   });
 
   it('should invalidate when passwords do not match', () => {
-    component.form.setValue({ name: 'John', username: 'john', email: 'j@j.com', password: 'abc123', confirmPassword: 'xyz999' });
+    component.form.setValue({
+      name: 'John',
+      username: 'john',
+      email: 'j@j.com',
+      password: 'abc123',
+      confirmPassword: 'xyz999',
+    });
     expect(component.form.errors?.['passwordsMismatch']).toBeTrue();
   });
 
   it('should be valid when all fields are correct', () => {
-    component.form.setValue({ name: 'John', username: 'john', email: 'j@j.com', password: 'abc123', confirmPassword: 'abc123' });
+    component.form.setValue({
+      name: 'John',
+      username: 'john',
+      email: 'j@j.com',
+      password: 'abc123',
+      confirmPassword: 'abc123',
+    });
     expect(component.form.valid).toBeTrue();
   });
 
   it('should not submit when form is invalid', () => {
-    component.form.setValue({ name: '', username: '', email: '', password: '', confirmPassword: '' });
+    component.form.setValue({
+      name: '',
+      username: '',
+      email: '',
+      password: '',
+      confirmPassword: '',
+    });
     component.submit();
     expect(authSpy.register).not.toHaveBeenCalled();
   });

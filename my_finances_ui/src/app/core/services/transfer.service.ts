@@ -13,13 +13,20 @@ export class TransferService {
   }
 
   create(data: {
-    name: string; value: number;
-    source_account_id: string; target_account_id: string; date: string; tag_ids: string[];
+    name: string;
+    value: number;
+    source_account_id: string;
+    target_account_id: string;
+    date: string;
+    tag_ids: string[];
   }): Observable<Transfer> {
     return this.http.post<Transfer>('/api/transfers', data);
   }
 
-  update(id: string, data: { name: string; date: string; tag_ids: string[] }): Observable<Transfer> {
+  update(
+    id: string,
+    data: { name: string; date: string; tag_ids: string[] },
+  ): Observable<Transfer> {
     return this.http.put<Transfer>(`/api/transfers/${id}`, data);
   }
 

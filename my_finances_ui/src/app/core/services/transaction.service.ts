@@ -14,15 +14,26 @@ export class TransactionService {
   }
 
   create(data: {
-    name: string; value: number; operation: 'add' | 'subtract';
-    bank_account_id: string; date: string; tag_ids: string[];
+    name: string;
+    value: number;
+    operation: 'add' | 'subtract';
+    bank_account_id: string;
+    date: string;
+    tag_ids: string[];
   }): Observable<Transaction> {
     return this.http.post<Transaction>('/api/transactions', data);
   }
 
-  update(id: string, data: {
-    name: string; value: number; operation: 'add' | 'subtract'; date: string; tag_ids: string[];
-  }): Observable<Transaction> {
+  update(
+    id: string,
+    data: {
+      name: string;
+      value: number;
+      operation: 'add' | 'subtract';
+      date: string;
+      tag_ids: string[];
+    },
+  ): Observable<Transaction> {
     return this.http.put<Transaction>(`/api/transactions/${id}`, data);
   }
 

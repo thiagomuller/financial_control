@@ -16,11 +16,18 @@ export class BankAccountService {
   }
 
   create(name: string, initialBalance: number, iconUrl?: string): Observable<BankAccount> {
-    return this.http.post<BankAccount>('/api/bank-accounts', { name, initial_balance: initialBalance, icon_url: iconUrl ?? null });
+    return this.http.post<BankAccount>('/api/bank-accounts', {
+      name,
+      initial_balance: initialBalance,
+      icon_url: iconUrl ?? null,
+    });
   }
 
   update(id: string, name: string, iconUrl?: string): Observable<BankAccount> {
-    return this.http.put<BankAccount>(`/api/bank-accounts/${id}`, { name, icon_url: iconUrl ?? null });
+    return this.http.put<BankAccount>(`/api/bank-accounts/${id}`, {
+      name,
+      icon_url: iconUrl ?? null,
+    });
   }
 
   delete(id: string): Observable<void> {
