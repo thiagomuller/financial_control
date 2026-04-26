@@ -194,6 +194,162 @@ func TestTransferInsufficientBalance(t *testing.T) {
 	resp.Body.Close()
 }
 
+func TestBankAccountWithImage(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "imguser", "img@test.com")
+
+	smallIcon := "data:image/png;base64,iVBORw0KGgoAAAANSUhEUg=="
+
+	// Create with icon
+	body, _ := json.Marshal(map[string]any{
+		"name":            "Icon Account",
+		"initial_balance": 0.0,
+		"icon_url":        smallIcon,
+	})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/bank-accounts", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create with icon: expected 201, got %d", resp.StatusCode)
+	}
+	var account map[string]any
+	json.NewDecoder(resp.Body).Decode(&account)
+	resp.Body.Close()
+	id := account["id"].(string)
+
+	// Update with new icon
+	newIcon := "data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJ"
+	body, _ = json.Marshal(map[string]any{"name": "Icon Account", "icon_url": newIcon})
+	req, _ = http.NewRequest("PUT", fmt.Sprintf("%s/api/bank-accounts/%s", srv.URL, id), bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("update with new icon: expected 200, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Remove icon by sending null
+	body, _ = json.Marshal(map[string]any{"name": "Icon Account", "icon_url": nil})
+	req, _ = http.NewRequest("PUT", fmt.Sprintf("%s/api/bank-accounts/%s", srv.URL, id), bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("remove icon: expected 200, got %d", resp.StatusCode)
+	}
+	var updated map[string]any
+	json.NewDecoder(resp.Body).Decode(&updated)
+	resp.Body.Close()
+	if updated["icon_url"] != nil {
+		t.Errorf("expected icon_url to be null after removal, got %v", updated["icon_url"])
+	}
+}
+
+func TestBankAccountNegativeInitialBalance(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "neguser", "neg@test.com")
+
+	body, _ := json.Marshal(map[string]any{"name": "Bad Account", "initial_balance": -100.0})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/bank-accounts", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("negative initial_balance: expected 400, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestBankAccountStatementIncludesTransfers(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "stmtuser", "stmt@test.com")
+
+	srcID := createBankAccount(t, srv.URL, token, "Source Account", 500.0)
+	tgtID := createBankAccount(t, srv.URL, token, "Target Account", 0.0)
+
+	body, _ := json.Marshal(map[string]any{
+		"name": "monthly savings", "value": 100.0,
+		"source_account_id": srcID, "target_account_id": tgtID,
+	})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/transfers", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create transfer: expected 201, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	// Transfer appears in source statement as subtract
+	req, _ = http.NewRequest("GET", fmt.Sprintf("%s/api/bank-accounts/%s/statement", srv.URL, srcID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("get source statement: expected 200, got %d", resp.StatusCode)
+	}
+
+	var stmtResp map[string]any
+	json.NewDecoder(resp.Body).Decode(&stmtResp)
+	resp.Body.Close()
+
+	txnsMap, _ := stmtResp["transactions"].(map[string]any)
+	data, _ := txnsMap["data"].([]any)
+	if len(data) == 0 {
+		t.Fatal("expected at least one entry in source statement")
+	}
+	entry, _ := data[0].(map[string]any)
+	if entry["kind"] != "transfer" {
+		t.Errorf("source: expected kind=transfer, got %v", entry["kind"])
+	}
+	if entry["operation"] != "subtract" {
+		t.Errorf("source: expected operation=subtract, got %v", entry["operation"])
+	}
+
+	// Transfer appears in target statement as add
+	req, _ = http.NewRequest("GET", fmt.Sprintf("%s/api/bank-accounts/%s/statement", srv.URL, tgtID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("get target statement: expected 200, got %d", resp.StatusCode)
+	}
+
+	json.NewDecoder(resp.Body).Decode(&stmtResp)
+	resp.Body.Close()
+
+	txnsMap, _ = stmtResp["transactions"].(map[string]any)
+	data, _ = txnsMap["data"].([]any)
+	if len(data) == 0 {
+		t.Fatal("expected at least one entry in target statement")
+	}
+	entry, _ = data[0].(map[string]any)
+	if entry["kind"] != "transfer" {
+		t.Errorf("target: expected kind=transfer, got %v", entry["kind"])
+	}
+	if entry["operation"] != "add" {
+		t.Errorf("target: expected operation=add, got %v", entry["operation"])
+	}
+}
+
 // ── helpers ──────────────────────────────────────────────────────────────────
 
 func registerAndGetToken(t *testing.T, baseURL, username, email string) string {

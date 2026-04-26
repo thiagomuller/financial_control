@@ -10,15 +10,18 @@
   <form [formGroup]="form" (ngSubmit)="create()">
     <div class="form-group">
       <label>Name</label>
-      <input formControlName="name" type="text" placeholder="e.g. Checking Account">
+      <input formControlName="name" type="text" placeholder="e.g. Checking Account" />
     </div>
     <div class="form-group">
       <label>Initial Balance</label>
-      <input formControlName="initialBalance" type="number" step="0.01" placeholder="0.00">
+      <input formControlName="initialBalance" type="number" step="0.01" placeholder="0.00" />
+      <span class="error-msg" *ngIf="form.get('initialBalance')?.errors?.['min']">
+        Initial balance cannot be negative.
+      </span>
     </div>
     <div class="form-group">
       <label>Icon (optional)</label>
-      <input type="file" accept="image/*" (change)="onIconFile($event)">
+      <input type="file" accept="image/*" (change)="onIconFile($event)" />
     </div>
     <div class="error-msg" *ngIf="error">{{ error }}</div>
     <button class="btn btn-primary" type="submit" [disabled]="form.invalid">Create</button>
@@ -35,11 +38,11 @@
   <div class="card account-item" *ngFor="let a of accounts">
     <div class="account-row" *ngIf="editingId !== a.id">
       <div class="account-info">
-        <img *ngIf="a.icon_url" [src]="a.icon_url" class="account-icon" alt="icon">
+        <img *ngIf="a.icon_url" [src]="a.icon_url" class="account-icon" alt="icon" />
         <div>
           <strong>{{ a.name }}</strong>
           <div [class]="a.balance < 0 ? 'balance-neg' : 'balance-pos'">
-            {{ a.balance | currency:'BRL':'symbol':'1.2-2' }}
+            {{ a.balance | currency: 'BRL' : 'symbol' : '1.2-2' }}
           </div>
         </div>
       </div>
@@ -52,9 +55,21 @@
 
     <div class="edit-row" *ngIf="editingId === a.id">
       <form [formGroup]="editForm" (ngSubmit)="saveEdit(a.id)" class="inline-form">
-        <input formControlName="name" type="text">
+        <input formControlName="name" type="text" />
+        <div class="form-group">
+          <label>Icon (optional)</label>
+          <input type="file" accept="image/*" (change)="onEditIconFile($event)" />
+          <div *ngIf="editForm.value.iconUrl">
+            <img [src]="editForm.value.iconUrl" class="account-icon" alt="preview" />
+            <button type="button" class="btn btn-danger btn-sm" (click)="removeEditIcon()">
+              Remove Icon
+            </button>
+          </div>
+        </div>
         <button class="btn btn-primary btn-sm" type="submit">Save</button>
-        <button class="btn btn-secondary btn-sm" type="button" (click)="editingId=null">Cancel</button>
+        <button class="btn btn-secondary btn-sm" type="button" (click)="editingId = null">
+          Cancel
+        </button>
       </form>
     </div>
   </div>
