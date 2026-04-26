@@ -10,7 +10,7 @@ import { BankAccountCardComponent } from './bank-account-card/bank-account-card.
   standalone: true,
   imports: [CommonModule, RouterLink, BankAccountCardComponent],
   templateUrl: './dashboard.component.html',
-  styleUrl: './dashboard.component.css'
+  styleUrl: './dashboard.component.css',
 })
 export class DashboardComponent implements OnInit {
   private dashSvc = inject(DashboardService);
@@ -21,8 +21,14 @@ export class DashboardComponent implements OnInit {
 
   ngOnInit(): void {
     this.dashSvc.get().subscribe({
-      next: (s) => { this.summaries = s ?? []; this.loading = false; },
-      error: () => { this.error = 'Failed to load dashboard.'; this.loading = false; }
+      next: (s) => {
+        this.summaries = s ?? [];
+        this.loading = false;
+      },
+      error: () => {
+        this.error = 'Failed to load dashboard.';
+        this.loading = false;
+      },
     });
   }
 }

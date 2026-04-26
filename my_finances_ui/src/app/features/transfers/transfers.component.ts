@@ -11,7 +11,7 @@ import { Transfer, BankAccount, Tag, PaginatedResponse } from '../../core/models
   standalone: true,
   imports: [CommonModule, ReactiveFormsModule],
   templateUrl: './transfers.component.html',
-  styleUrl: './transfers.component.css'
+  styleUrl: './transfers.component.css',
 })
 export class TransfersComponent implements OnInit {
   private svc = inject(TransferService);
@@ -33,31 +33,46 @@ export class TransfersComponent implements OnInit {
     source_account_id: ['', Validators.required],
     target_account_id: ['', Validators.required],
     date: [new Date().toISOString().slice(0, 10), Validators.required],
-    tag_ids: [[] as string[]]
+    tag_ids: [[] as string[]],
   });
 
   ngOnInit(): void {
-    this.bankSvc.list().subscribe(a => this.accounts = a ?? []);
-    this.tagSvc.list().subscribe(t => this.tags = t ?? []);
+    this.bankSvc.list().subscribe((a) => (this.accounts = a ?? []));
+    this.tagSvc.list().subscribe((t) => (this.tags = t ?? []));
     this.load();
   }
 
   load(): void {
     this.loading = true;
-    this.svc.list(this.page).subscribe({ next: r => { this.result = r; this.loading = false; }, error: () => this.loading = false });
+    this.svc.list(this.page).subscribe({
+      next: (r) => {
+        this.result = r;
+        this.loading = false;
+      },
+      error: () => (this.loading = false),
+    });
   }
 
   create(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
-    this.svc.create({
-      name: v.name!, value: v.value!,
-      source_account_id: v.source_account_id!, target_account_id: v.target_account_id!,
-      date: new Date(v.date!).toISOString(), tag_ids: this.form.controls.tag_ids.value ?? []
-    }).subscribe({
-      next: () => { this.showForm = false; this.form.reset({ date: new Date().toISOString().slice(0, 10) }); this.load(); },
-      error: e => this.error = e.error?.error ?? 'Failed to create transfer'
-    });
+    this.svc
+      .create({
+        name: v.name!,
+        value: v.value!,
+        source_account_id: v.source_account_id!,
+        target_account_id: v.target_account_id!,
+        date: new Date(v.date!).toISOString(),
+        tag_ids: this.form.controls.tag_ids.value ?? [],
+      })
+      .subscribe({
+        next: () => {
+          this.showForm = false;
+          this.form.reset({ date: new Date().toISOString().slice(0, 10) });
+          this.load();
+        },
+        error: (e) => (this.error = e.error?.error ?? 'Failed to create transfer'),
+      });
   }
 
   delete(id: string): void {
@@ -65,15 +80,20 @@ export class TransfersComponent implements OnInit {
     this.svc.delete(id).subscribe({ next: () => this.load() });
   }
 
-  goToPage(p: number): void { if (p < 1 || p > this.result.pages) return; this.page = p; this.load(); }
+  goToPage(p: number): void {
+    if (p < 1 || p > this.result.pages) return;
+    this.page = p;
+    this.load();
+  }
 
   pageNumbers(): number[] {
     const range: number[] = [];
-    for (let i = Math.max(1, this.page - 2); i <= Math.min(this.result.pages, this.page + 2); i++) range.push(i);
+    for (let i = Math.max(1, this.page - 2); i <= Math.min(this.result.pages, this.page + 2); i++)
+      range.push(i);
     return range;
   }
 
   accountName(id: string): string {
-    return this.accounts.find(a => a.id === id)?.name ?? id.slice(0, 8) + '…';
+    return this.accounts.find((a) => a.id === id)?.name ?? id.slice(0, 8) + '…';
   }
 }

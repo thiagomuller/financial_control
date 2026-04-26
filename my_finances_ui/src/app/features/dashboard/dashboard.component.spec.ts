@@ -12,10 +12,18 @@ describe('DashboardComponent', () => {
   let dashSpy: jasmine.SpyObj<DashboardService>;
 
   const mockSummary: BankAccountSummary = {
-    account: { id: '1', user_id: 'u1', name: 'Checking', balance: 500, icon_url: null, created_at: '', updated_at: '' },
+    account: {
+      id: '1',
+      user_id: 'u1',
+      name: 'Checking',
+      balance: 500,
+      icon_url: null,
+      created_at: '',
+      updated_at: '',
+    },
     latest_transactions: [],
     tag_stats: [],
-    upcoming_expenses: []
+    upcoming_expenses: [],
   };
 
   beforeEach(async () => {
@@ -28,7 +36,7 @@ describe('DashboardComponent', () => {
         provideRouter([]),
         provideHttpClient(),
         { provide: DashboardService, useValue: dashSpy },
-      ]
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(DashboardComponent);

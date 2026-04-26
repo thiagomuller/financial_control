@@ -23,7 +23,7 @@ describe('LoginComponent', () => {
         provideHttpClient(),
         { provide: AuthService, useValue: authSpy },
         { provide: Router, useValue: routerSpy },
-      ]
+      ],
     }).compileComponents();
 
     fixture = TestBed.createComponent(LoginComponent);

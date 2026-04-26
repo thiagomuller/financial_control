@@ -1,12 +1,16 @@
 <div class="page-header">
   <h1>Transactions</h1>
-  <button class="btn btn-primary" (click)="showForm = !showForm">{{ showForm ? 'Cancel' : '+ New Transaction' }}</button>
+  <button class="btn btn-primary" (click)="showForm = !showForm">
+    {{ showForm ? 'Cancel' : '+ New Transaction' }}
+  </button>
 </div>
 
 <div class="card form-card" *ngIf="showForm">
   <form [formGroup]="form" (ngSubmit)="create()">
     <div class="form-row">
-      <div class="form-group"><label>Name</label><input formControlName="name" placeholder="e.g. Groceries"></div>
+      <div class="form-group">
+        <label>Name</label><input formControlName="name" placeholder="e.g. Groceries" />
+      </div>
       <div class="form-group">
         <label>Account</label>
         <select formControlName="bank_account_id">
@@ -16,7 +20,9 @@
       </div>
     </div>
     <div class="form-row">
-      <div class="form-group"><label>Value</label><input formControlName="value" type="number" step="0.01"></div>
+      <div class="form-group">
+        <label>Value</label><input formControlName="value" type="number" step="0.01" />
+      </div>
       <div class="form-group">
         <label>Operation</label>
         <select formControlName="operation">
@@ -24,16 +30,22 @@
           <option value="subtract">Subtract (Expense)</option>
         </select>
       </div>
-      <div class="form-group"><label>Date</label><input formControlName="date" type="date"></div>
+      <div class="form-group"><label>Date</label><input formControlName="date" type="date" /></div>
     </div>
     <div class="form-group" *ngIf="tags.length">
       <label>Tags</label>
       <div class="tag-picker">
-        <button *ngFor="let t of tags" type="button"
-                [class.selected]="isTagSelected(t.id)"
-                [style.background]="isTagSelected(t.id) ? (t.color || '#64748b') : ''"
-                [style.color]="isTagSelected(t.id) ? '#fff' : ''"
-                (click)="toggleTag(t.id)" class="tag-btn">{{ t.name }}</button>
+        <button
+          *ngFor="let t of tags"
+          type="button"
+          [class.selected]="isTagSelected(t.id)"
+          [style.background]="isTagSelected(t.id) ? t.color || '#64748b' : ''"
+          [style.color]="isTagSelected(t.id) ? '#fff' : ''"
+          (click)="toggleTag(t.id)"
+          class="tag-btn"
+        >
+          {{ t.name }}
+        </button>
       </div>
     </div>
     <div class="error-msg" *ngIf="error">{{ error }}</div>
@@ -45,22 +57,46 @@
 <div *ngIf="!loading" class="card">
   <div class="empty-state" *ngIf="result.data.length === 0"><p>No transactions yet.</p></div>
   <table *ngIf="result.data.length > 0">
-    <thead><tr><th>Date</th><th>Name</th><th>Account</th><th>Type</th><th>Value</th><th>Tags</th><th></th></tr></thead>
+    <thead>
+      <tr>
+        <th>Date</th>
+        <th>Name</th>
+        <th>Account</th>
+        <th>Type</th>
+        <th>Value</th>
+        <th>Tags</th>
+        <th></th>
+      </tr>
+    </thead>
     <tbody>
       <tr *ngFor="let t of result.data">
-        <td>{{ t.date | date:'MMM d, y' }}</td>
+        <td>{{ t.date | date: 'MMM d, y' }}</td>
         <td>{{ t.name }}</td>
-        <td>{{ t.bank_account_id | slice:0:8 }}…</td>
-        <td><span [class]="'badge badge-' + t.operation">{{ t.operation }}</span></td>
-        <td [class]="'amount-' + t.operation">{{ t.operation === 'add' ? '+' : '-' }}{{ t.value | currency:'BRL':'symbol':'1.2-2' }}</td>
-        <td><span *ngFor="let tag of t.tags" class="tag-chip" [style.background]="tag.color||'#64748b'">{{ tag.name }}</span></td>
+        <td>{{ t.bank_account_id | slice: 0 : 8 }}…</td>
+        <td>
+          <span [class]="'badge badge-' + t.operation">{{ t.operation }}</span>
+        </td>
+        <td [class]="'amount-' + t.operation">
+          {{ t.operation === 'add' ? '+' : '-'
+          }}{{ t.value | currency: 'BRL' : 'symbol' : '1.2-2' }}
+        </td>
+        <td>
+          <span
+            *ngFor="let tag of t.tags"
+            class="tag-chip"
+            [style.background]="tag.color || '#64748b'"
+            >{{ tag.name }}</span
+          >
+        </td>
         <td><button class="btn btn-danger btn-sm" (click)="delete(t.id)">Delete</button></td>
       </tr>
     </tbody>
   </table>
   <div class="pagination" *ngIf="result.pages > 1">
-    <button [disabled]="page===1" (click)="goToPage(page-1)">‹</button>
-    <button *ngFor="let p of pageNumbers()" [class.active]="p===page" (click)="goToPage(p)">{{ p }}</button>
-    <button [disabled]="page===result.pages" (click)="goToPage(page+1)">›</button>
+    <button [disabled]="page === 1" (click)="goToPage(page - 1)">‹</button>
+    <button *ngFor="let p of pageNumbers()" [class.active]="p === page" (click)="goToPage(p)">
+      {{ p }}
+    </button>
+    <button [disabled]="page === result.pages" (click)="goToPage(page + 1)">›</button>
   </div>
 </div>

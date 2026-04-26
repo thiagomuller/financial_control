@@ -117,15 +117,25 @@ export interface UpcomingItem {
   source: string;
 }
 
+export interface FeedEntry {
+  id: string;
+  name: string;
+  value: number;
+  operation: 'add' | 'subtract';
+  date: string;
+  kind: 'transaction' | 'transfer';
+  tags?: Tag[];
+}
+
 export interface BankAccountSummary {
   account: BankAccount;
-  latest_transactions: Transaction[];
+  latest_transactions: FeedEntry[];
   tag_stats: TagStat[];
   upcoming_expenses: UpcomingItem[];
 }
 
 export interface StatementResponse {
   account: BankAccount;
-  transactions: PaginatedResponse<Transaction>;
+  transactions: PaginatedResponse<FeedEntry>;
   upcoming: UpcomingItem[];
 }

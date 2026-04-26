@@ -38,6 +38,35 @@ func TestTransferAllowed(t *testing.T) {
 	}
 }
 
+// transferOperation returns the operation for a feed entry given which account is being viewed.
+func transferOperation(sourceAccountID, viewedAccountID string) string {
+	if sourceAccountID == viewedAccountID {
+		return "subtract"
+	}
+	return "add"
+}
+
+func TestTransferOperation(t *testing.T) {
+	cases := []struct {
+		sourceID string
+		viewedID string
+		want     string
+	}{
+		{"acc1", "acc1", "subtract"},
+		{"acc1", "acc2", "add"},
+		{"acc2", "acc2", "subtract"},
+		{"acc2", "acc1", "add"},
+	}
+
+	for _, tc := range cases {
+		got := transferOperation(tc.sourceID, tc.viewedID)
+		if got != tc.want {
+			t.Errorf("transferOperation(%q, %q) = %q, want %q",
+				tc.sourceID, tc.viewedID, got, tc.want)
+		}
+	}
+}
+
 func TestApplyOperation(t *testing.T) {
 	cases := []struct {
 		balance float64

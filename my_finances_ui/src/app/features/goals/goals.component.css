@@ -1,7 +1,33 @@
-.form-card { margin-bottom: 1.25rem; }
-.form-row { display: flex; gap: 1rem; flex-wrap: wrap; }
-.form-row .form-group { flex: 1; min-width: 160px; }
-.goal-card { display: flex; flex-direction: column; gap: .75rem; }
-.goal-header { display: flex; justify-content: space-between; align-items: center; }
-.goal-stats { display: grid; grid-template-columns: 1fr 1fr; gap: .4rem .75rem; font-size: .85rem; }
-.label { color: var(--text-muted); font-size: .75rem; display: block; }
+.form-card {
+  margin-bottom: 1.25rem;
+}
+.form-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+.form-row .form-group {
+  flex: 1;
+  min-width: 160px;
+}
+.goal-card {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+}
+.goal-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+.goal-stats {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 0.4rem 0.75rem;
+  font-size: 0.85rem;
+}
+.label {
+  color: var(--text-muted);
+  font-size: 0.75rem;
+  display: block;
+}

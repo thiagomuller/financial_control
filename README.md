@@ -45,20 +45,30 @@ distrobox-host-exec podman unshare chmod 777 ./db_data
 ```
 
 ## Running the App
-
 ```bash
-# Build images and start all services (db + api + ui)
-distrobox-host-exec podman-compose build
-distrobox-host-exec podman-compose up -d
+podman-compose -f /home/$USER/financial_control/docker-compose.yml build && \
+podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r podman stop && \
+podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman stop && \
+podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman stop && \
+podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r podman rm && \
+podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman rm && \
+podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman rm && \
+podman-compose -f /home/$USER/financial_control/docker-compose.yml up -d
 ```
-
-The UI is served at **http://localhost** (port 80 via nginx).
 
 ## Stopping the App
-
 ```bash
-distrobox-host-exec podman-compose down
+podman-compose -f /home/$USER/financial_control/docker-compose.yml down && \
+podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r podman stop && \
+podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman stop && \
+podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman stop && \
+podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r podman rm && \
+podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman rm && \
+podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman rm 
 ```
+
+> Replace podman with docker, in case you're using docker as the container engine
+> Replace /home/$USER/financial_control/docker-compose.yml with the path you've cloned this repo into
 
 ## Running Tests
 
