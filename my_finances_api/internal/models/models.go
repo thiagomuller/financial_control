@@ -241,6 +241,16 @@ type UpdateExpenseRequest struct {
 
 // ── Dashboard / Statement ────────────────────────────────────────────────────
 
+type FeedEntry struct {
+	ID        string    `json:"id"`
+	Name      string    `json:"name"`
+	Value     float64   `json:"value"`
+	Operation string    `json:"operation"`
+	Date      time.Time `json:"date"`
+	Kind      string    `json:"kind"` // "transaction" | "transfer"
+	Tags      []Tag     `json:"tags,omitempty"`
+}
+
 type TagStat struct {
 	Tag   Tag `json:"tag"`
 	Count int `json:"count"`
@@ -256,14 +266,14 @@ type UpcomingItem struct {
 }
 
 type BankAccountSummary struct {
-	Account            BankAccount   `json:"account"`
-	LatestTransactions []Transaction `json:"latest_transactions"`
-	TagStats           []TagStat     `json:"tag_stats"`
+	Account            BankAccount    `json:"account"`
+	LatestTransactions []FeedEntry    `json:"latest_transactions"`
+	TagStats           []TagStat      `json:"tag_stats"`
 	UpcomingExpenses   []UpcomingItem `json:"upcoming_expenses"`
 }
 
 type StatementResponse struct {
-	Account      BankAccount                  `json:"account"`
-	Transactions PaginatedResponse[Transaction] `json:"transactions"`
-	Upcoming     []UpcomingItem               `json:"upcoming"`
+	Account      BankAccount                `json:"account"`
+	Transactions PaginatedResponse[FeedEntry] `json:"transactions"`
+	Upcoming     []UpcomingItem             `json:"upcoming"`
 }
