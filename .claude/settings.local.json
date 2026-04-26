@@ -1,8 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(distrobox-host-exec podman-compose *)",
-      "Bash(distrobox-host-exec podman *)"
-    ]
-  }
-}
