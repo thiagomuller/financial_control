@@ -150,8 +150,8 @@ ___
 **Description:** Fill the README file explaining what is this project and how it works.
 
 **Acceptance Criteria:**
-- [ ] Should make very clear that this project is almost entirely AI generated, and it should not be used in production.
-- [ ] Should choose a license that makes this project completely public, free to be used by whoever like to do so.
+- [x] Should make very clear that this project is almost entirely AI generated, and it should not be used in production.
+- [x] Should choose a license that makes this project completely public, free to be used by whoever like to do so.
 
 ---
 
@@ -160,7 +160,7 @@ ___
 **Description:** Create automated E2E tests that go through the entire stack
 
 **Acceptance Criteria:**
-- [ ] Should write E2E test scenarios for the existing functionallity by pulling the entire stack, API, UI, and DB, and using a test user to do the tests.
+- [x] Should write E2E test scenarios for the existing functionallity by pulling the entire stack, API, UI, and DB, and using a test user to do the tests.
 
 
 **Target Milestone:** M2
@@ -172,12 +172,12 @@ ___
 **Description:** Trying to create a bank account with a image gets a 500 error from the backend
 
 **Acceptance Criteria:**
-- [ ] Should be able to create a bank account with the image sucessfully.
-- [ ] Should be able to, once created, change that image to another one at any given time.
-- [ ] Should be able to just remove the image, if the user wants to.
-- [ ] Must add unit, integration and E2E test scenarios for this to make sure they validate the feature and avoid this bug in the future.
-- [ ] The unit, integration and E2E tests must be passing before considering this done.
-- [ ] Unit, integration and E2E test code must follow clean code practices.
+- [x] Should be able to create a bank account with the image sucessfully.
+- [x] Should be able to, once created, change that image to another one at any given time.
+- [x] Should be able to just remove the image, if the user wants to.
+- [x] Must add unit, integration and E2E test scenarios for this to make sure they validate the feature and avoid this bug in the future.
+- [x] The unit, integration and E2E tests must be passing before considering this done.
+- [x] Unit, integration and E2E test code must follow clean code practices.
 
 
 **Target Milestone:** M2
@@ -189,12 +189,12 @@ ___
 **Description:**: Unable to create a bank account with initial balance right now.
 
 **Acceptance Criteria:**
-- [ ] Should be able to create a bank account with initial balance.
-- [ ] Initial balance on bank account creation must be a positive number, never negative.
-- [ ] Initial balance on bank account creation can be zero.
-- [ ] Must add unit, integration and E2E test scenarios for this to make sure they validate the feature and avoid this bug in the future.
-- [ ] The unit, integration and E2E tests must be passing before considering this done.
-- [ ] Unit, integration and E2E test code must follow clean code practices.
+- [x] Should be able to create a bank account with initial balance.
+- [x] Initial balance on bank account creation must be a positive number, never negative.
+- [x] Initial balance on bank account creation can be zero.
+- [x] Must add unit, integration and E2E test scenarios for this to make sure they validate the feature and avoid this bug in the future.
+- [x] The unit, integration and E2E tests must be passing before considering this done.
+- [x] Unit, integration and E2E test code must follow clean code practices.
 
 **Target Milestone:** M2
 
@@ -205,13 +205,13 @@ ___
 **Description:**: The cards for the different resources have the same color, or colors too close to the background, making it difficult to see their boundaries.
 
 **Acceptance Criteria:**
-- [ ] Implement a dark theme on the app.
-- [ ] Dark theme must be toggleable by the user.
-- [ ] Both dark and default themes must have a color pallete picker for the user to customize their visual experience.
-- [ ] If in dark theme, the resources cards need to be at least slightly lighter than the background.
-- [ ] If in default/white theme, the resources cards need to be slightly darker than the background.
-- [ ] Add unit, integration and E2E tests to validate this functionality and make it testable before future commits changing this.
-- [ ] Unit, integration and E2E test code must follow clean code practices.
+- [x] Implement a dark theme on the app.
+- [x] Dark theme must be toggleable by the user.
+- [x] Both dark and default themes must have a color pallete picker for the user to customize their visual experience.
+- [x] If in dark theme, the resources cards need to be at least slightly lighter than the background.
+- [x] If in default/white theme, the resources cards need to be slightly darker than the background.
+- [x] Add unit, integration and E2E tests to validate this functionality and make it testable before future commits changing this.
+- [x] Unit, integration and E2E test code must follow clean code practices.
 
 **Target Milestone:** M2
 
@@ -222,10 +222,10 @@ ___
 **Description:**: Transfers should be considered part of the list on the bank account summary and bank account statement.
 
 **Acceptance Criteria:**
-- [ ] Implement a feature that makes transfers part of the bank account summary, like a transaction
-- [ ] Implement a feature that makes transfer part of the bank account statement, like a transaction.
-- [ ] Add unit, integration and E2E tests to validate this functionality and make it testable before future commits changing this.
-- [ ] Unit, integration and E2E test code must follow clean code practices.
+- [x] Implement a feature that makes transfers part of the bank account summary, like a transaction
+- [x] Implement a feature that makes transfer part of the bank account statement, like a transaction.
+- [x] Add unit, integration and E2E tests to validate this functionality and make it testable before future commits changing this.
+- [x] Unit, integration and E2E test code must follow clean code practices.
 
 **Target Milestone:** M2
 
@@ -238,10 +238,10 @@ ___
 **Description:**: The makefiles should make it possible to run the linter and the trivy scan for both projects.
 
 **Acceptance Criteria:**
-- [ ] Make trivy runnable by using a Makefile command on each: the API, and the UI
-- [ ] Make trivy docker image scan runnable by using a Makefile command on each: the API, and the UI
-- [ ] Make linter runnable by using a Makefile command on each: the API, and the UI
-- [ ] Both trivy, trivy docker image scan and linter must pass on both projects before the milestone is considered done.
+- [x] Make trivy runnable by using a Makefile command on each: the API, and the UI
+- [x] Make trivy docker image scan runnable by using a Makefile command on each: the API, and the UI
+- [x] Make linter runnable by using a Makefile command on each: the API, and the UI
+- [x] Both trivy, trivy docker image scan and linter must pass on both projects before the milestone is considered done.
 
 **Target Milestone:** M2
 
@@ -252,8 +252,8 @@ ___
 **Description:**: Update documentation.md and README.md with the relevant information after the second milestone.
 
 **Acceptance Criteria:**
-- [ ] README.md must describe operational stuff, such as: how to run the project, how to run the security scans on the UI and the API, how to run the linter, etc.
-- [ ] documentation.md must describe, in depth, all the features present in the project, and must be up to date with the second milestone features.
+- [x] README.md must describe operational stuff, such as: how to run the project, how to run the security scans on the UI and the API, how to run the linter, etc.
+- [x] documentation.md must describe, in depth, all the features present in the project, and must be up to date with the second milestone features.
 
 
 **Target Milestone:** M2
