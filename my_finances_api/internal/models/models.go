@@ -63,9 +63,10 @@ type UpdateBankAccountRequest struct {
 
 type Tag struct {
 	ID        string    `json:"id"`
-	UserID    string    `json:"user_id"`
+	UserID    *string   `json:"user_id"`
 	Name      string    `json:"name"`
 	Color     *string   `json:"color"`
+	IsSystem  bool      `json:"is_system"`
 	CreatedAt time.Time `json:"created_at"`
 	UpdatedAt time.Time `json:"updated_at"`
 }
@@ -83,16 +84,19 @@ type UpdateTagRequest struct {
 // ── Transaction ───────────────────────────────────────────────────────────────
 
 type Transaction struct {
-	ID            string    `json:"id"`
-	UserID        string    `json:"user_id"`
-	BankAccountID string    `json:"bank_account_id"`
-	Name          string    `json:"name"`
-	Value         float64   `json:"value"`
-	Operation     string    `json:"operation"` // "add" | "subtract"
-	Date          time.Time `json:"date"`
-	Tags          []Tag     `json:"tags,omitempty"`
-	CreatedAt     time.Time `json:"created_at"`
-	UpdatedAt     time.Time `json:"updated_at"`
+	ID             string     `json:"id"`
+	UserID         string     `json:"user_id"`
+	BankAccountID  string     `json:"bank_account_id"`
+	Name           string     `json:"name"`
+	Value          float64    `json:"value"`
+	Operation      string     `json:"operation"` // "add" | "subtract"
+	Date           time.Time  `json:"date"`
+	IsRepeatable   bool       `json:"is_repeatable"`
+	RepeatableDay  *int       `json:"repeatable_day"`
+	LastExecutedAt *time.Time `json:"last_executed_at,omitempty"`
+	Tags           []Tag      `json:"tags,omitempty"`
+	CreatedAt      time.Time  `json:"created_at"`
+	UpdatedAt      time.Time  `json:"updated_at"`
 }
 
 type CreateTransactionRequest struct {
@@ -102,6 +106,13 @@ type CreateTransactionRequest struct {
 	BankAccountID string    `json:"bank_account_id"`
 	Date          time.Time `json:"date"`
 	TagIDs        []string  `json:"tag_ids"`
+	IsRepeatable  bool      `json:"is_repeatable"`
+	RepeatableDay *int      `json:"repeatable_day"`
+}
+
+type CreateTransactionResponse struct {
+	Transaction
+	ProjectedBalanceWarning string `json:"projected_balance_warning,omitempty"`
 }
 
 type UpdateTransactionRequest struct {
@@ -123,16 +134,19 @@ type PaginatedResponse[T any] struct {
 // ── Transfer ──────────────────────────────────────────────────────────────────
 
 type Transfer struct {
-	ID              string    `json:"id"`
-	UserID          string    `json:"user_id"`
-	SourceAccountID string    `json:"source_account_id"`
-	TargetAccountID string    `json:"target_account_id"`
-	Name            string    `json:"name"`
-	Value           float64   `json:"value"`
-	Date            time.Time `json:"date"`
-	Tags            []Tag     `json:"tags,omitempty"`
-	CreatedAt       time.Time `json:"created_at"`
-	UpdatedAt       time.Time `json:"updated_at"`
+	ID              string     `json:"id"`
+	UserID          string     `json:"user_id"`
+	SourceAccountID string     `json:"source_account_id"`
+	TargetAccountID string     `json:"target_account_id"`
+	Name            string     `json:"name"`
+	Value           float64    `json:"value"`
+	Date            time.Time  `json:"date"`
+	IsRepeatable    bool       `json:"is_repeatable"`
+	RepeatableDay   *int       `json:"repeatable_day"`
+	LastExecutedAt  *time.Time `json:"last_executed_at,omitempty"`
+	Tags            []Tag      `json:"tags,omitempty"`
+	CreatedAt       time.Time  `json:"created_at"`
+	UpdatedAt       time.Time  `json:"updated_at"`
 }
 
 type CreateTransferRequest struct {
@@ -142,6 +156,13 @@ type CreateTransferRequest struct {
 	TargetAccountID string    `json:"target_account_id"`
 	Date            time.Time `json:"date"`
 	TagIDs          []string  `json:"tag_ids"`
+	IsRepeatable    bool      `json:"is_repeatable"`
+	RepeatableDay   *int      `json:"repeatable_day"`
+}
+
+type CreateTransferResponse struct {
+	Transfer
+	ProjectedBalanceWarning string `json:"projected_balance_warning,omitempty"`
 }
 
 type UpdateTransferRequest struct {
@@ -183,62 +204,6 @@ type UpdateGoalRequest struct {
 	TargetValue  float64   `json:"target_value"`
 }
 
-// ── Income ────────────────────────────────────────────────────────────────────
-
-type Income struct {
-	ID              string     `json:"id"`
-	UserID          string     `json:"user_id"`
-	BankAccountID   string     `json:"bank_account_id"`
-	Name            string     `json:"name"`
-	Value           float64    `json:"value"`
-	RepeatableDay   int        `json:"repeatable_day"`
-	LastExecutedAt  *time.Time `json:"last_executed_at"`
-	CreatedAt       time.Time  `json:"created_at"`
-	UpdatedAt       time.Time  `json:"updated_at"`
-}
-
-type CreateIncomeRequest struct {
-	Name          string  `json:"name"`
-	Value         float64 `json:"value"`
-	BankAccountID string  `json:"bank_account_id"`
-	RepeatableDay int     `json:"repeatable_day"`
-}
-
-type UpdateIncomeRequest struct {
-	Name          string  `json:"name"`
-	Value         float64 `json:"value"`
-	BankAccountID string  `json:"bank_account_id"`
-	RepeatableDay int     `json:"repeatable_day"`
-}
-
-// ── Expense ───────────────────────────────────────────────────────────────────
-
-type Expense struct {
-	ID             string     `json:"id"`
-	UserID         string     `json:"user_id"`
-	BankAccountID  string     `json:"bank_account_id"`
-	Name           string     `json:"name"`
-	Value          float64    `json:"value"`
-	RepeatableDay  int        `json:"repeatable_day"`
-	LastExecutedAt *time.Time `json:"last_executed_at"`
-	CreatedAt      time.Time  `json:"created_at"`
-	UpdatedAt      time.Time  `json:"updated_at"`
-}
-
-type CreateExpenseRequest struct {
-	Name          string  `json:"name"`
-	Value         float64 `json:"value"`
-	BankAccountID string  `json:"bank_account_id"`
-	RepeatableDay int     `json:"repeatable_day"`
-}
-
-type UpdateExpenseRequest struct {
-	Name          string  `json:"name"`
-	Value         float64 `json:"value"`
-	BankAccountID string  `json:"bank_account_id"`
-	RepeatableDay int     `json:"repeatable_day"`
-}
-
 // ── Dashboard / Statement ────────────────────────────────────────────────────
 
 type FeedEntry struct {
@@ -273,7 +238,7 @@ type BankAccountSummary struct {
 }
 
 type StatementResponse struct {
-	Account      BankAccount                `json:"account"`
+	Account      BankAccount                  `json:"account"`
 	Transactions PaginatedResponse[FeedEntry] `json:"transactions"`
-	Upcoming     []UpcomingItem             `json:"upcoming"`
+	Upcoming     []UpcomingItem               `json:"upcoming"`
 }

@@ -13,6 +13,9 @@
       </div>
       <div class="form-group">
         <label>Color</label><input formControlName="color" type="color" />
+        <span class="error-msg" *ngIf="form.controls.color.errors?.['reservedColor']">
+          This color is reserved for system tags.
+        </span>
       </div>
     </div>
     <button class="btn btn-primary" type="submit" [disabled]="form.invalid">Create</button>
@@ -20,25 +23,42 @@
 </div>
 
 <div *ngIf="loading" class="spinner"></div>
-<div class="tags-grid" *ngIf="!loading">
-  <div class="empty-state" *ngIf="tags.length === 0"><p>No tags yet.</p></div>
-  <div class="tag-item card" *ngFor="let t of tags">
-    <ng-container *ngIf="editingId !== t.id">
-      <span class="tag-chip" [style.background]="t.color || '#64748b'">{{ t.name }}</span>
-      <div class="actions">
-        <button class="btn btn-secondary btn-sm" (click)="startEdit(t)">Edit</button>
-        <button class="btn btn-danger btn-sm" (click)="delete(t.id)">Delete</button>
+
+<ng-container *ngIf="!loading">
+  <div *ngIf="systemTags.length > 0">
+    <h2 class="section-label">System Tags</h2>
+    <div class="tags-grid">
+      <div class="tag-item card" *ngFor="let t of systemTags">
+        <span class="tag-chip" [style.background]="t.color || '#64748b'">{{ t.name }}</span>
+        <span class="system-badge">system</span>
       </div>
-    </ng-container>
-    <ng-container *ngIf="editingId === t.id">
-      <form [formGroup]="editForm" (ngSubmit)="saveEdit(t.id)" class="inline-form">
-        <input formControlName="name" type="text" />
-        <input formControlName="color" type="color" />
-        <button class="btn btn-primary btn-sm" type="submit">Save</button>
-        <button class="btn btn-secondary btn-sm" type="button" (click)="editingId = null">
-          Cancel
-        </button>
-      </form>
-    </ng-container>
+    </div>
   </div>
-</div>
+
+  <h2 class="section-label" *ngIf="userTags.length > 0 || systemTags.length > 0">Your Tags</h2>
+  <div class="tags-grid">
+    <div class="empty-state" *ngIf="userTags.length === 0"><p>No tags yet.</p></div>
+    <div class="tag-item card" *ngFor="let t of userTags">
+      <ng-container *ngIf="editingId !== t.id">
+        <span class="tag-chip" [style.background]="t.color || '#64748b'">{{ t.name }}</span>
+        <div class="actions">
+          <button class="btn btn-secondary btn-sm" (click)="startEdit(t)">Edit</button>
+          <button class="btn btn-danger btn-sm" (click)="delete(t.id)">Delete</button>
+        </div>
+      </ng-container>
+      <ng-container *ngIf="editingId === t.id">
+        <form [formGroup]="editForm" (ngSubmit)="saveEdit(t.id)" class="inline-form">
+          <input formControlName="name" type="text" />
+          <input formControlName="color" type="color" />
+          <span class="error-msg" *ngIf="editForm.controls.color.errors?.['reservedColor']">
+            Reserved color.
+          </span>
+          <button class="btn btn-primary btn-sm" type="submit" [disabled]="editForm.invalid">Save</button>
+          <button class="btn btn-secondary btn-sm" type="button" (click)="editingId = null">
+            Cancel
+          </button>
+        </form>
+      </ng-container>
+    </div>
+  </div>
+</ng-container>

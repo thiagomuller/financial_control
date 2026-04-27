@@ -14,12 +14,13 @@
 10. [Testing Strategy](#10-testing-strategy)
 11. [API Reference](#11-api-reference)
 12. [Milestone 2 Changes](#12-milestone-2-changes)
+13. [Milestone 3 Changes](#13-milestone-3-changes)
 
 ---
 
 ## 1. Project Overview
 
-My Finances APP is a self-hosted personal finance manager. It tracks bank accounts, categorised transactions, transfers between accounts, savings goals, and recurring incomes/expenses. A background scheduler automatically creates transactions for recurring items each month. The stack is:
+My Finances APP is a self-hosted personal finance manager. It tracks bank accounts, categorised transactions, transfers between accounts, savings goals, and repeatable transactions/transfers. A background scheduler automatically materialises repeatable templates as real records each month. The stack is:
 
 - **Backend**: Go 1.25.8 — standard library only (+ `github.com/lib/pq` for PostgreSQL)
 - **Frontend**: Angular 21 — standalone components, reactive forms, lazy-loaded routes
@@ -146,7 +147,8 @@ My Finances APP/
 │       │   └── config.go       # Env-var configuration
 │       ├── database/
 │       │   ├── database.go     # Connection pool setup
-│       │   └── migrations.go   # CREATE TABLE IF NOT EXISTS schema
+│       │   ├── migrations.go   # CREATE TABLE IF NOT EXISTS schema
+│       │   └── seed.go         # Seeds system tags (Income, Expense) at startup
 │       ├── handlers/
 │       │   ├── router.go       # Route registration
 │       │   ├── helpers.go      # writeJSON, writeError, pagination
@@ -156,8 +158,6 @@ My Finances APP/
 │       │   ├── transaction_handler.go
 │       │   ├── transfer_handler.go
 │       │   ├── goal_handler.go
-│       │   ├── income_handler.go
-│       │   ├── expense_handler.go
 │       │   └── dashboard_handler.go
 │       ├── middleware/
 │       │   ├── auth.go         # JWT bearer token middleware
@@ -165,11 +165,12 @@ My Finances APP/
 │       ├── models/
 │       │   └── models.go       # All domain structs
 │       └── scheduler/
-│           └── scheduler.go    # Recurring income/expense processor
+│           └── scheduler.go    # Materialises repeatable transaction/transfer templates
 │   └── tests/
 │       ├── unit/
 │       │   ├── jwt_test.go
-│       │   └── balance_test.go
+│       │   ├── balance_test.go
+│       │   └── repeatable_test.go
 │       └── integration/
 │           └── api_test.go
 │
@@ -199,11 +200,11 @@ My Finances APP/
             │   ├── tags/
             │   ├── transactions/
             │   ├── transfers/
-            │   ├── goals/
-            │   ├── incomes/
-            │   └── expenses/
+            │   └── goals/
             └── shared/
-                └── components/nav/
+                └── components/
+                    ├── nav/
+                    └── tag-autocomplete/
 ```
 
 ---
@@ -287,9 +288,10 @@ The startup sequence is strictly ordered:
 1. `config.Load()` — reads environment variables and applies defaults.
 2. `database.Connect(cfg)` — opens the connection pool with `lib/pq`.
 3. `database.RunMigrations(db)` — runs `CREATE TABLE IF NOT EXISTS` for all tables. Idempotent; safe to run on every startup.
-4. `scheduler.Run(db)` — starts the background goroutine for recurring items.
-5. `handlers.NewRouter(db, cfg)` — registers all routes.
-6. `http.ListenAndServe(addr, router)` — blocks serving requests.
+4. `database.SeedSystemTags(db)` — inserts the Income and Expense system tags if they do not yet exist (`ON CONFLICT DO NOTHING`).
+5. `scheduler.Run(db)` — starts the background goroutine for repeatable items.
+6. `handlers.NewRouter(db, cfg)` — registers all routes.
+7. `http.ListenAndServe(addr, router)` — blocks serving requests.
 
 ### 5.2 Configuration (`internal/config/config.go`)
 
@@ -375,8 +377,8 @@ The most complex handler. Beyond standard CRUD, it provides:
 **Statement endpoint** (`GET /api/bank-accounts/{id}/statement`):
 Returns the account details, a paginated list of transactions for that account, and a list of upcoming items for the next 90 days.
 
-**`buildUpcoming`**: Calculates future income, expense, and goal transfer events:
-- Queries `incomes` and `expenses` for this account, calls `nextOccurrences(day, now, horizon)` to get each monthly recurrence.
+**`buildUpcoming`**: Calculates future repeatable transaction and goal transfer events:
+- Queries `transactions` where `is_repeatable=true` for this account, calls `nextOccurrences(day, now, horizon)` to get each monthly recurrence.
 - Queries `goals` where this account is the source, distributes `target_value` over the goal's interval, and projects each future transfer date.
 
 **`nextOccurrences(day, from, until)`**: Iterates month by month. For each month it clamps the requested day to the actual last day of the month (e.g., day 31 becomes day 28/29/30 as appropriate). Returns only dates strictly after `from` and not after `until`.
@@ -386,9 +388,11 @@ Returns the account details, a paginated list of transactions for that account, 
 `CREATE`:
 1. Opens a DB transaction.
 2. Inserts the transaction row.
-3. Updates `bank_accounts.balance` by `+value` (`add`) or `-value` (`subtract`).
-4. Inserts tag associations into `transaction_tags`.
-5. Commits.
+3. If `is_repeatable=false`, updates `bank_accounts.balance` by `+value` (`add`) or `-value` (`subtract`). Repeatable templates are stored without touching the real balance.
+4. Auto-tags the transaction with the "Income" system tag for `add` operations and the "Expense" system tag for `subtract` operations (deduped against any user-provided `tag_ids`).
+5. Inserts tag associations into `transaction_tags`.
+6. If `is_repeatable=true`, computes a projected monthly balance (sum of all repeatable adds/subtracts/transfers for the account) and returns an advisory `projected_balance_warning` string if the net is negative. This is informational — it does not block the request.
+7. Commits.
 
 `UPDATE`:
 1. Opens a DB transaction.
@@ -408,10 +412,10 @@ Returns the account details, a paginated list of transactions for that account, 
 `CREATE`:
 1. Opens a DB transaction.
 2. Locks the source account row with `SELECT … FOR UPDATE` — prevents concurrent overdraft.
-3. Checks `source.balance >= value`; returns 400 if insufficient.
-4. Inserts the transfer row.
-5. `UPDATE source SET balance = balance - value`.
-6. `UPDATE target SET balance = balance + value`.
+3. If `is_repeatable=false`, checks `source.balance >= value`; returns 400 if insufficient. Repeatable transfer templates skip this check.
+4. Inserts the transfer row with any provided `tag_ids`.
+5. If `is_repeatable=false`, updates both account balances (`source - value`, `target + value`). Repeatable templates leave balances untouched.
+6. If `is_repeatable=true`, computes a projected balance warning and returns it as `projected_balance_warning` in the response.
 7. Commits.
 
 `DELETE`: Reverses the balance changes atomically in the same way.
@@ -423,15 +427,19 @@ Aggregates data across all the user's accounts:
 - Total balance across all bank accounts.
 - Latest 3 transactions per account (using a `ROW_NUMBER() OVER (PARTITION BY bank_account_id ORDER BY date DESC)` window function approach or a per-account subquery).
 - Tag spending statistics: `SELECT tag_id, SUM(value)` grouped by tag for `subtract` transactions in the current month.
-- Upcoming expenses in the next 30 days (from incomes/expenses/goals).
+- Upcoming items in the next 30 days (from repeatable transactions and goals).
 
 ### 5.12 Goal Handler (`internal/handlers/goal_handler.go`)
 
 Goals store a `source_account_id`, `target_account_id`, `start_date`, `end_date`, `interval_days`, and `target_value`. The API does not automatically execute goal transfers — it only records the goal definition. The `buildUpcoming` function in the bank account statement calculates when goal transfers are due and shows them as future items, making the goal visible on the account statement without any scheduled side effects.
 
-### 5.13 Income and Expense Handlers
+### 5.13 Tag Handler (`internal/handlers/tag_handler.go`)
 
-These store recurring items with a `repeatable_day` (1–31) and a `last_executed_at` timestamp. The scheduler reads these and creates real transactions; the handlers only manage the CRUD of the definitions.
+Tags support system-level and user-level entries. Key behaviours:
+
+- **List**: returns both system tags (`is_system=true`, `user_id=NULL`) and the current user's own tags.
+- **Create / Update**: rejects names that match reserved system tag names (`income`, `expense`, case-insensitive) with `400`.
+- **Delete**: returns `403` when a system tag is targeted; users cannot delete the Income or Expense tags.
 
 ---
 
@@ -463,8 +471,6 @@ All protected routes use `canActivate: [authGuard]`. The guard reads the JWT fro
 | `/transactions`            | TransactionsComponent        | Yes       |
 | `/transfers`               | TransfersComponent           | Yes       |
 | `/goals`                   | GoalsComponent               | Yes       |
-| `/incomes`                 | IncomesComponent             | Yes       |
-| `/expenses`                | ExpensesComponent            | Yes       |
 
 ### 6.3 Auth Interceptor (`core/interceptors/auth.interceptor.ts`)
 
@@ -497,7 +503,6 @@ Each domain entity has a corresponding service in `core/services/`. All services
 - `TransferService` — paginated list, create, delete.
 - `TagService` — list, create, update, delete.
 - `GoalService` — CRUD.
-- `IncomeService` / `ExpenseService` — CRUD.
 - `DashboardService` — single `get()` call.
 
 ### 6.6 Transactions Component TypeScript Notes
@@ -561,14 +566,12 @@ Utility classes: `.card`, `.btn`, `.btn-primary`, `.btn-danger`, `.form-group`, 
 ```
 users
   └── bank_accounts  (user_id FK)
-  └── tags           (user_id FK)
+  └── tags           (user_id FK, nullable — system tags have user_id=NULL)
   └── transactions   (user_id FK, bank_account_id FK)
         └── transaction_tags  (transaction_id, tag_id composite PK)
   └── transfers      (user_id FK, source_account_id FK, target_account_id FK)
         └── transfer_tags     (transfer_id, tag_id composite PK)
   └── goals          (user_id FK, source_account_id FK, target_account_id FK)
-  └── incomes        (user_id FK, bank_account_id FK)
-  └── expenses       (user_id FK, bank_account_id FK)
 ```
 
 ### Key Design Decisions
@@ -579,8 +582,10 @@ users
 - **`TIMESTAMPTZ` for all timestamps** — stores in UTC, handles timezone-aware comparisons correctly.
 - **`ON DELETE CASCADE`** — deleting a user removes all their data; deleting a bank account removes its transactions.
 - **`operation CHECK ('add', 'subtract')`** — database-level enforcement of the two valid transaction types.
-- **`repeatable_day CHECK (1-31)`** — prevents invalid day values at the DB level.
-- **`last_executed_at TIMESTAMPTZ`** — nullable; the scheduler uses this to determine whether the recurring item has been executed this month.
+- **`tags.user_id` is nullable** — system tags (`is_system=true`) have `user_id=NULL`; user tags have a FK to `users`. A partial unique index `idx_tags_system_name ON tags(name) WHERE is_system=true` ensures system tag names stay unique across restarts.
+- **`transactions.is_repeatable BOOLEAN`** — when `true`, the row is a template; the scheduler creates real (`is_repeatable=false`) copies from it. Statement and dashboard queries always filter `AND is_repeatable=false` to exclude templates from history views.
+- **`transactions.repeatable_day INTEGER CHECK (1-31)`** — nullable; the day of month on which the scheduler materialises a template.
+- **`last_executed_at TIMESTAMPTZ`** — nullable; the scheduler uses this to determine whether the repeatable template has been executed this month.
 - **Junction tables** (`transaction_tags`, `transfer_tags`) use composite primary keys, which automatically prevent duplicate tag associations and create an index on both columns.
 
 ---
@@ -619,21 +624,24 @@ The UI supports a toggleable dark/light theme. Theme state is controlled via a `
 
 ---
 
-## 9. Recurring Transactions Scheduler
+## 9. Repeatable Item Scheduler
 
 The scheduler (`internal/scheduler/scheduler.go`) runs as a background goroutine started at application startup. It ticks every 24 hours and also fires once immediately on startup to catch any missed executions from a restart.
 
 ### Execution Logic
 
-For each income or expense:
+For each repeatable **transaction** template (`is_repeatable=true`):
 
-1. Query rows where `repeatable_day <= today`.
+1. Query rows where `repeatable_day <= today's day-of-month`.
 2. Check if `last_executed_at` is in the current year and month. If yes, skip — already executed this month.
 3. Open a DB transaction:
-   - Insert a transaction row (`add` for income, `subtract` for expense).
-   - Update `bank_accounts.balance`.
-   - Set `last_executed_at = NOW()`.
+   - Insert a new real transaction row (`is_repeatable=false`) with the same fields.
+   - Copy tag associations from the template via `copyTemplateTags()`.
+   - Update `bank_accounts.balance` according to `operation`.
+   - Set template's `last_executed_at = NOW()`.
 4. Commit.
+
+The same logic runs for repeatable **transfer** templates, adjusting both source and target account balances.
 
 ### Why `repeatable_day <= today` Instead of `= today`
 
@@ -641,7 +649,7 @@ If the application was offline on the scheduled day (e.g., the server was down o
 
 ### Month-End Handling
 
-Day 31 incomes or expenses will execute on the last day of shorter months (28/29/30) because the scheduler uses actual day-of-month arithmetic. Specifically, if `repeatable_day=31` and today is March 31, it will execute. In February, it would execute on day 28/29 because `28 <= 31` would be true before that.
+Day 31 templates will execute on the last day of shorter months (28/29/30) because `28 <= 31` is true before February ends.
 
 ---
 
@@ -743,32 +751,32 @@ Paginated list responses return:
 
 | Method | Path            | Body              | Response  |
 |--------|-----------------|-------------------|-----------|
-| GET    | `/api/tags`     | —                 | `Tag[]`   |
-| POST   | `/api/tags`     | `{name, color}`   | Tag       |
-| PUT    | `/api/tags/{id}`| `{name, color}`   | Tag       |
-| DELETE | `/api/tags/{id}`| —                 | 204       |
+| GET    | `/api/tags`     | —                 | `Tag[]` (system + user tags) |
+| POST   | `/api/tags`     | `{name, color}`   | Tag — 400 if name is reserved (`income`/`expense`) |
+| PUT    | `/api/tags/{id}`| `{name, color}`   | Tag — 400 if name is reserved |
+| DELETE | `/api/tags/{id}`| —                 | 204 — 403 for system tags |
 
 ### Transactions
 
 | Method | Path                      | Body / Query                                     | Response                        |
 |--------|---------------------------|--------------------------------------------------|---------------------------------|
-| GET    | `/api/transactions`       | `?bank_account_id=&page=&limit=`                 | `PaginatedResponse<Transaction>`|
-| POST   | `/api/transactions`       | `{name, value, operation, bank_account_id, date, tag_ids}` | Transaction       |
-| PUT    | `/api/transactions/{id}`  | `{name, value, operation, bank_account_id, date, tag_ids}` | Transaction       |
+| GET    | `/api/transactions`       | `?bank_account_id=&page=&limit=`                 | `PaginatedResponse<Transaction>` (templates excluded) |
+| POST   | `/api/transactions`       | `{name, value, operation, bank_account_id, date, tag_ids, is_repeatable?, repeatable_day?}` | `CreateTransactionResponse` |
+| PUT    | `/api/transactions/{id}`  | same as POST                                     | Transaction                     |
 | DELETE | `/api/transactions/{id}`  | —                                                | 204                             |
 
-`operation` must be `"add"` or `"subtract"`.
+`operation` must be `"add"` or `"subtract"`. When `is_repeatable=true`, the response includes an optional `projected_balance_warning` string (advisory only).
 
 ### Transfers
 
 | Method | Path                  | Body / Query                                             | Response                      |
 |--------|-----------------------|----------------------------------------------------------|-------------------------------|
-| GET    | `/api/transfers`      | `?page=&limit=`                                          | `PaginatedResponse<Transfer>` |
-| POST   | `/api/transfers`      | `{name, value, source_account_id, target_account_id, date, tag_ids}` | Transfer |
+| GET    | `/api/transfers`      | `?page=&limit=`                                          | `PaginatedResponse<Transfer>` (templates excluded) |
+| POST   | `/api/transfers`      | `{name, value, source_account_id, target_account_id, date, tag_ids, is_repeatable?, repeatable_day?}` | `CreateTransferResponse` |
 | PUT    | `/api/transfers/{id}` | same as POST                                             | Transfer                      |
 | DELETE | `/api/transfers/{id}` | —                                                        | 204                           |
 
-Returns `400 {"error":"insufficient balance"}` if the source account balance is too low.
+Returns `400 {"error":"insufficient balance"}` if the source account balance is too low and `is_repeatable=false`. Repeatable transfer templates skip the balance check. When `is_repeatable=true`, the response includes an optional `projected_balance_warning` string.
 
 ### Goals
 
@@ -778,24 +786,6 @@ Returns `400 {"error":"insufficient balance"}` if the source account balance is 
 | POST   | `/api/goals`     | `{name, source_account_id, target_account_id, start_date, end_date, interval_days, target_value}` | Goal |
 | PUT    | `/api/goals/{id}`| same as POST                                                   | Goal       |
 | DELETE | `/api/goals/{id}`| —                                                              | 204        |
-
-### Incomes
-
-| Method | Path               | Body                                                      | Response    |
-|--------|--------------------|-----------------------------------------------------------|-------------|
-| GET    | `/api/incomes`     | —                                                         | `Income[]`  |
-| POST   | `/api/incomes`     | `{name, value, bank_account_id, repeatable_day}`          | Income      |
-| PUT    | `/api/incomes/{id}`| same as POST                                              | Income      |
-| DELETE | `/api/incomes/{id}`| —                                                         | 204         |
-
-### Expenses
-
-| Method | Path                | Body                                                      | Response     |
-|--------|---------------------|-----------------------------------------------------------|--------------|
-| GET    | `/api/expenses`     | —                                                         | `Expense[]`  |
-| POST   | `/api/expenses`     | `{name, value, bank_account_id, repeatable_day}`          | Expense      |
-| PUT    | `/api/expenses/{id}`| same as POST                                              | Expense      |
-| DELETE | `/api/expenses/{id}`| —                                                         | 204          |
 
 ### Dashboard
 
@@ -861,3 +851,44 @@ npx playwright test
 ```
 
 The suite runs in headed or headless mode and targets the local nginx URL (`http://localhost`). CI configuration can point `BASE_URL` to any environment.
+
+---
+
+## 13. Milestone 3 Changes
+
+### 13.1 System Tags (D16)
+
+Two global system tags — **Income** (`#16a34a`) and **Expense** (`#dc2626`) — are seeded at startup via `database.SeedSystemTags`. They are stored in the `tags` table with `user_id=NULL` and `is_system=true`. Users:
+- **Can see** system tags in the tags list, displayed in a separate read-only section.
+- **Cannot** create, edit, or delete them.
+- **Cannot** name their own tags `income` or `expense` (case-insensitive); the API returns `400` and the UI validates client-side.
+
+Every new transaction is automatically associated with the Income or Expense system tag based on its `operation` field.
+
+### 13.2 Repeatable Transactions (D17)
+
+The `transactions` table gained three columns: `is_repeatable BOOLEAN`, `repeatable_day INTEGER`, and `last_executed_at TIMESTAMPTZ`. A repeatable transaction (`is_repeatable=true`) is a **template** — it does not affect the real account balance and does not appear in statement or dashboard history views. The scheduler materialises it into a real (`is_repeatable=false`) transaction on the chosen day each month.
+
+The create endpoint returns a `projected_balance_warning` string when creating a repeatable template whose net monthly effect on the account would be negative. This is advisory only; the request still succeeds.
+
+The UI form adds a "Repeatable" checkbox. When checked, a day-of-month picker and an income/expense type selector replace the operation dropdown.
+
+### 13.3 Repeatable Transfers (D18)
+
+The same `is_repeatable` / `repeatable_day` / `last_executed_at` columns were added to the `transfers` table. Repeatable transfer templates skip the source balance check and leave account balances untouched. The scheduler applies the balance changes when materialising the real record each month.
+
+### 13.4 Tag Autocomplete (D19)
+
+The tag multi-select was redesigned as a reusable `TagAutocompleteComponent` (`shared/components/tag-autocomplete/`). It accepts `@Input() tags`, `@Input() selectedIds`, and emits `@Output() selectionChange`. The user types to filter tags, clicks a suggestion from the dropdown to select it, and removes selections via chip ×-buttons. The dropdown closes 150 ms after blur to allow click events to register first.
+
+### 13.5 Tags on Transfers (D20)
+
+The transfer form and list were updated to support tags through `<app-tag-autocomplete>`. The `POST /api/transfers` and `PUT /api/transfers/{id}` bodies accept `tag_ids[]`, stored in `transfer_tags`. The transfers list table shows a Tags column with colour-coded chips.
+
+### 13.6 Removal of Incomes and Expenses (D21)
+
+The separate Income and Expense features were removed entirely:
+- **API**: `income_handler.go` and `expense_handler.go` deleted; 8 routes removed from the router; `incomes` and `expenses` tables dropped in the alterations migration.
+- **UI**: `IncomesComponent`, `ExpensesComponent`, `IncomeService`, `ExpenseService` deleted; routes removed from `app.routes.ts`; nav links removed.
+
+Repeatable transactions replace the functionality these features provided.

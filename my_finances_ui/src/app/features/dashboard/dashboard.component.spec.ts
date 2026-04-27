@@ -5,11 +5,12 @@ import { of, throwError } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { BankAccountSummary } from '../../core/models/models';
+import { vi } from 'vitest';
 
 describe('DashboardComponent', () => {
   let component: DashboardComponent;
   let fixture: ComponentFixture<DashboardComponent>;
-  let dashSpy: jasmine.SpyObj<DashboardService>;
+  let mockGet: ReturnType<typeof vi.fn>;
 
   const mockSummary: BankAccountSummary = {
     account: {
@@ -27,15 +28,14 @@ describe('DashboardComponent', () => {
   };
 
   beforeEach(async () => {
-    dashSpy = jasmine.createSpyObj('DashboardService', ['get']);
-    dashSpy.get.and.returnValue(of([mockSummary]));
+    mockGet = vi.fn().mockReturnValue(of([mockSummary]));
 
     await TestBed.configureTestingModule({
       imports: [DashboardComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
-        { provide: DashboardService, useValue: dashSpy },
+        { provide: DashboardService, useValue: { get: mockGet } },
       ],
     }).compileComponents();
 
@@ -49,13 +49,13 @@ describe('DashboardComponent', () => {
   });
 
   it('should load summaries on init', () => {
-    expect(dashSpy.get).toHaveBeenCalled();
+    expect(mockGet).toHaveBeenCalled();
     expect(component.summaries.length).toBe(1);
-    expect(component.loading).toBeFalse();
+    expect(component.loading).toBe(false);
   });
 
   it('should show empty state when no accounts', async () => {
-    dashSpy.get.and.returnValue(of([]));
+    mockGet.mockReturnValue(of([]));
     component.ngOnInit();
     fixture.detectChanges();
     const el = fixture.nativeElement.querySelector('.empty-state');
@@ -63,7 +63,7 @@ describe('DashboardComponent', () => {
   });
 
   it('should show error on failure', () => {
-    dashSpy.get.and.returnValue(throwError(() => new Error('fail')));
+    mockGet.mockReturnValue(throwError(() => new Error('fail')));
     component.ngOnInit();
     expect(component.error).toBeTruthy();
   });

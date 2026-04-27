@@ -1,25 +1,25 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { RegisterComponent } from './register.component';
 import { AuthService } from '../../../core/services/auth.service';
-import { Router } from '@angular/router';
 import { of } from 'rxjs';
 import { provideRouter } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
+import { vi } from 'vitest';
 
 describe('RegisterComponent', () => {
   let component: RegisterComponent;
   let fixture: ComponentFixture<RegisterComponent>;
-  let authSpy: jasmine.SpyObj<AuthService>;
+  let mockRegister: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    authSpy = jasmine.createSpyObj('AuthService', ['register', 'getCurrentUser']);
+    mockRegister = vi.fn().mockReturnValue(of({ token: 'tok', user: {} as any }));
 
     await TestBed.configureTestingModule({
       imports: [RegisterComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
-        { provide: AuthService, useValue: authSpy },
+        { provide: AuthService, useValue: { register: mockRegister, getCurrentUser: vi.fn() } },
       ],
     }).compileComponents();
 
@@ -40,7 +40,7 @@ describe('RegisterComponent', () => {
       password: 'abc123',
       confirmPassword: 'xyz999',
     });
-    expect(component.form.errors?.['passwordsMismatch']).toBeTrue();
+    expect(component.form.errors?.['passwordsMismatch']).toBe(true);
   });
 
   it('should be valid when all fields are correct', () => {
@@ -51,7 +51,7 @@ describe('RegisterComponent', () => {
       password: 'abc123',
       confirmPassword: 'abc123',
     });
-    expect(component.form.valid).toBeTrue();
+    expect(component.form.valid).toBe(true);
   });
 
   it('should not submit when form is invalid', () => {
@@ -63,6 +63,6 @@ describe('RegisterComponent', () => {
       confirmPassword: '',
     });
     component.submit();
-    expect(authSpy.register).not.toHaveBeenCalled();
+    expect(mockRegister).not.toHaveBeenCalled();
   });
 });

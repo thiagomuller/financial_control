@@ -64,6 +64,10 @@ func setupDB(t *testing.T) (*sql.DB, func()) {
 		t.Fatalf("running migrations: %v", err)
 	}
 
+	if err := database.SeedSystemTags(db); err != nil {
+		t.Fatalf("seeding system tags: %v", err)
+	}
+
 	return db, func() {
 		db.Close()
 		container.Terminate(ctx)
@@ -381,4 +385,202 @@ func createBankAccount(t *testing.T, baseURL, token, name string, balance float6
 	var acc map[string]any
 	json.NewDecoder(resp.Body).Decode(&acc)
 	return acc["id"].(string)
+}
+
+func TestSystemTagsExistAfterMigration(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "tagcheckuser", "tagcheck@test.com")
+
+	req, _ := http.NewRequest("GET", srv.URL+"/api/tags", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusOK {
+		t.Fatalf("list tags: expected 200, got %d", resp.StatusCode)
+	}
+
+	var tags []map[string]any
+	json.NewDecoder(resp.Body).Decode(&tags)
+	resp.Body.Close()
+
+	found := map[string]bool{}
+	for _, tag := range tags {
+		name, _ := tag["name"].(string)
+		isSystem, _ := tag["is_system"].(bool)
+		if isSystem {
+			found[name] = true
+		}
+	}
+
+	if !found["Income"] {
+		t.Error("expected system tag 'Income' to exist")
+	}
+	if !found["Expense"] {
+		t.Error("expected system tag 'Expense' to exist")
+	}
+}
+
+func TestCannotCreateReservedTagName(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "reservedtaguser", "reservedtag@test.com")
+
+	body, _ := json.Marshal(map[string]any{"name": "income", "color": "#000000"})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/tags", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("create reserved tag: expected 400, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestCannotDeleteSystemTag(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "delsystaguser", "delsystag@test.com")
+
+	req, _ := http.NewRequest("GET", srv.URL+"/api/tags", nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ := http.DefaultClient.Do(req)
+	var tags []map[string]any
+	json.NewDecoder(resp.Body).Decode(&tags)
+	resp.Body.Close()
+
+	var incomeTagID string
+	for _, tag := range tags {
+		if tag["name"] == "Income" {
+			incomeTagID = tag["id"].(string)
+			break
+		}
+	}
+	if incomeTagID == "" {
+		t.Fatal("Income system tag not found")
+	}
+
+	req, _ = http.NewRequest("DELETE", fmt.Sprintf("%s/api/tags/%s", srv.URL, incomeTagID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ = http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusForbidden {
+		t.Fatalf("delete system tag: expected 403, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestRepeatableTransactionDoesNotUpdateBalance(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "reptxnuser", "reptxn@test.com")
+	accountID := createBankAccount(t, srv.URL, token, "Savings", 500.0)
+
+	day := 15
+	body, _ := json.Marshal(map[string]any{
+		"name":           "Monthly Expense",
+		"value":          100.0,
+		"operation":      "subtract",
+		"bank_account_id": accountID,
+		"is_repeatable":  true,
+		"repeatable_day": day,
+	})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/transactions", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("create repeatable transaction: expected 201, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+
+	req, _ = http.NewRequest("GET", fmt.Sprintf("%s/api/bank-accounts/%s", srv.URL, accountID), nil)
+	req.Header.Set("Authorization", "Bearer "+token)
+	resp, _ = http.DefaultClient.Do(req)
+	var account map[string]any
+	json.NewDecoder(resp.Body).Decode(&account)
+	resp.Body.Close()
+
+	balance, _ := account["balance"].(float64)
+	if balance != 500.0 {
+		t.Errorf("expected balance 500, got %.2f (repeatable transaction should not update balance)", balance)
+	}
+}
+
+func TestRepeatableTransferSkipsBalanceCheck(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "reptransferuser", "reptransfer@test.com")
+	srcID := createBankAccount(t, srv.URL, token, "Source", 10.0)
+	tgtID := createBankAccount(t, srv.URL, token, "Target", 0.0)
+
+	day := 1
+	body, _ := json.Marshal(map[string]any{
+		"name":              "Big Repeatable Transfer",
+		"value":             1000.0,
+		"source_account_id": srcID,
+		"target_account_id": tgtID,
+		"is_repeatable":     true,
+		"repeatable_day":    day,
+	})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/transfers", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusCreated {
+		t.Fatalf("repeatable transfer skipping balance check: expected 201, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
+}
+
+func TestNonRepeatableTransferStillEnforcesBalanceCheck(t *testing.T) {
+	db, cleanup := setupDB(t)
+	defer cleanup()
+
+	cfg := &config.Config{JWTSecret: "test-secret", Port: "8080"}
+	srv := httptest.NewServer(handlers.NewRouter(db, cfg))
+	defer srv.Close()
+
+	token := registerAndGetToken(t, srv.URL, "nonreptransferuser", "nonreptransfer@test.com")
+	srcID := createBankAccount(t, srv.URL, token, "Source", 10.0)
+	tgtID := createBankAccount(t, srv.URL, token, "Target", 0.0)
+
+	body, _ := json.Marshal(map[string]any{
+		"name":              "Too Big Transfer",
+		"value":             1000.0,
+		"source_account_id": srcID,
+		"target_account_id": tgtID,
+		"is_repeatable":     false,
+	})
+	req, _ := http.NewRequest("POST", srv.URL+"/api/transfers", bytes.NewReader(body))
+	req.Header.Set("Authorization", "Bearer "+token)
+	req.Header.Set("Content-Type", "application/json")
+	resp, _ := http.DefaultClient.Do(req)
+	if resp.StatusCode != http.StatusBadRequest {
+		t.Fatalf("non-repeatable transfer balance check: expected 400, got %d", resp.StatusCode)
+	}
+	resp.Body.Close()
 }

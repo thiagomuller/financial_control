@@ -9,12 +9,19 @@ import (
 	"github.com/thiago/my_finances_api/internal/models"
 )
 
+func isReservedTagName(name string) bool {
+	n := strings.ToLower(strings.TrimSpace(name))
+	return n == "income" || n == "expense"
+}
+
 func (h *Handler) listTags(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserID(r)
 
 	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT id, user_id, name, color, created_at, updated_at
-		 FROM tags WHERE user_id=$1 ORDER BY name`, userID,
+		`SELECT id, user_id, name, color, is_system, created_at, updated_at
+		 FROM tags
+		 WHERE (user_id=$1 AND is_system=false) OR is_system=true
+		 ORDER BY is_system DESC, name`, userID,
 	)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
@@ -25,7 +32,7 @@ func (h *Handler) listTags(w http.ResponseWriter, r *http.Request) {
 	tags := []models.Tag{}
 	for rows.Next() {
 		var t models.Tag
-		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt, &t.UpdatedAt); err != nil {
+		if err := rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt); err != nil {
 			writeError(w, http.StatusInternalServerError, "internal error")
 			return
 		}
@@ -49,13 +56,17 @@ func (h *Handler) createTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	if isReservedTagName(req.Name) {
+		writeError(w, http.StatusBadRequest, "tag name is reserved")
+		return
+	}
 
 	var t models.Tag
 	err := h.db.QueryRowContext(r.Context(),
 		`INSERT INTO tags (user_id, name, color) VALUES ($1,$2,$3)
-		 RETURNING id, user_id, name, color, created_at, updated_at`,
+		 RETURNING id, user_id, name, color, is_system, created_at, updated_at`,
 		userID, req.Name, req.Color,
-	).Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt, &t.UpdatedAt)
+	).Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		writeError(w, http.StatusInternalServerError, "internal error")
 		return
@@ -79,14 +90,18 @@ func (h *Handler) updateTag(w http.ResponseWriter, r *http.Request) {
 		writeError(w, http.StatusBadRequest, "name is required")
 		return
 	}
+	if isReservedTagName(req.Name) {
+		writeError(w, http.StatusBadRequest, "tag name is reserved")
+		return
+	}
 
 	var t models.Tag
 	err := h.db.QueryRowContext(r.Context(),
 		`UPDATE tags SET name=$1, color=$2, updated_at=$3
 		 WHERE id=$4 AND user_id=$5
-		 RETURNING id, user_id, name, color, created_at, updated_at`,
+		 RETURNING id, user_id, name, color, is_system, created_at, updated_at`,
 		req.Name, req.Color, time.Now(), id, userID,
-	).Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt, &t.UpdatedAt)
+	).Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt)
 	if err != nil {
 		writeError(w, http.StatusNotFound, "tag not found")
 		return
@@ -98,6 +113,19 @@ func (h *Handler) updateTag(w http.ResponseWriter, r *http.Request) {
 func (h *Handler) deleteTag(w http.ResponseWriter, r *http.Request) {
 	userID := middleware.UserID(r)
 	id := r.PathValue("id")
+
+	var isSystem bool
+	err := h.db.QueryRowContext(r.Context(),
+		`SELECT is_system FROM tags WHERE id=$1`, id,
+	).Scan(&isSystem)
+	if err != nil {
+		writeError(w, http.StatusNotFound, "tag not found")
+		return
+	}
+	if isSystem {
+		writeError(w, http.StatusForbidden, "cannot delete system tag")
+		return
+	}
 
 	res, err := h.db.ExecContext(r.Context(),
 		`DELETE FROM tags WHERE id=$1 AND user_id=$2`, id, userID,
@@ -116,10 +144,9 @@ func (h *Handler) deleteTag(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusNoContent)
 }
 
-// fetchTransactionTags loads tags for a transaction (used by multiple handlers).
 func (h *Handler) fetchTransactionTags(r *http.Request, txnID string) []models.Tag {
 	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT t.id, t.user_id, t.name, t.color, t.created_at, t.updated_at
+		`SELECT t.id, t.user_id, t.name, t.color, t.is_system, t.created_at, t.updated_at
 		 FROM tags t
 		 JOIN transaction_tags tt ON tt.tag_id = t.id
 		 WHERE tt.transaction_id = $1`, txnID,
@@ -132,16 +159,15 @@ func (h *Handler) fetchTransactionTags(r *http.Request, txnID string) []models.T
 	var tags []models.Tag
 	for rows.Next() {
 		var t models.Tag
-		rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt, &t.UpdatedAt)
+		rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt)
 		tags = append(tags, t)
 	}
 	return tags
 }
 
-// fetchTransferTags loads tags for a transfer.
 func (h *Handler) fetchTransferTags(r *http.Request, transferID string) []models.Tag {
 	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT t.id, t.user_id, t.name, t.color, t.created_at, t.updated_at
+		`SELECT t.id, t.user_id, t.name, t.color, t.is_system, t.created_at, t.updated_at
 		 FROM tags t
 		 JOIN transfer_tags tt ON tt.tag_id = t.id
 		 WHERE tt.transfer_id = $1`, transferID,
@@ -154,7 +180,7 @@ func (h *Handler) fetchTransferTags(r *http.Request, transferID string) []models
 	var tags []models.Tag
 	for rows.Next() {
 		var t models.Tag
-		rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.CreatedAt, &t.UpdatedAt)
+		rows.Scan(&t.ID, &t.UserID, &t.Name, &t.Color, &t.IsSystem, &t.CreatedAt, &t.UpdatedAt)
 		tags = append(tags, t)
 	}
 	return tags

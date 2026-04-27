@@ -5,6 +5,11 @@
   </button>
 </div>
 
+<div class="warning-banner" *ngIf="warning">
+  {{ warning }}
+  <button type="button" class="close-warning" (click)="warning = ''">×</button>
+</div>
+
 <div class="card form-card" *ngIf="showForm">
   <form [formGroup]="form" (ngSubmit)="create()">
     <div class="form-row">
@@ -23,30 +28,41 @@
       <div class="form-group">
         <label>Value</label><input formControlName="value" type="number" step="0.01" />
       </div>
-      <div class="form-group">
+      <div class="form-group" *ngIf="!isRepeatable">
         <label>Operation</label>
         <select formControlName="operation">
           <option value="add">Add (Income)</option>
           <option value="subtract">Subtract (Expense)</option>
         </select>
       </div>
+      <div class="form-group" *ngIf="isRepeatable">
+        <label>Type</label>
+        <select formControlName="repeatable_type">
+          <option value="income">Income (add)</option>
+          <option value="expense">Expense (subtract)</option>
+        </select>
+      </div>
       <div class="form-group"><label>Date</label><input formControlName="date" type="date" /></div>
+    </div>
+    <div class="form-row">
+      <div class="form-group checkbox-group">
+        <label>
+          <input type="checkbox" formControlName="is_repeatable" />
+          Repeatable
+        </label>
+      </div>
+      <div class="form-group" *ngIf="isRepeatable">
+        <label>Day of month (1–31)</label>
+        <input formControlName="repeatable_day" type="number" min="1" max="31" />
+      </div>
     </div>
     <div class="form-group" *ngIf="tags.length">
       <label>Tags</label>
-      <div class="tag-picker">
-        <button
-          *ngFor="let t of tags"
-          type="button"
-          [class.selected]="isTagSelected(t.id)"
-          [style.background]="isTagSelected(t.id) ? t.color || '#64748b' : ''"
-          [style.color]="isTagSelected(t.id) ? '#fff' : ''"
-          (click)="toggleTag(t.id)"
-          class="tag-btn"
-        >
-          {{ t.name }}
-        </button>
-      </div>
+      <app-tag-autocomplete
+        [tags]="tags"
+        [selectedIds]="form.controls.tag_ids.value ?? []"
+        (selectionChange)="onTagSelectionChange($event)"
+      ></app-tag-autocomplete>
     </div>
     <div class="error-msg" *ngIf="error">{{ error }}</div>
     <button class="btn btn-primary" type="submit" [disabled]="form.invalid">Create</button>
@@ -71,7 +87,10 @@
     <tbody>
       <tr *ngFor="let t of result.data">
         <td>{{ t.date | date: 'MMM d, y' }}</td>
-        <td>{{ t.name }}</td>
+        <td>
+          {{ t.name }}
+          <span class="badge badge-recurring" *ngIf="t.is_repeatable">Recurring</span>
+        </td>
         <td>{{ t.bank_account_id | slice: 0 : 8 }}…</td>
         <td>
           <span [class]="'badge badge-' + t.operation">{{ t.operation }}</span>

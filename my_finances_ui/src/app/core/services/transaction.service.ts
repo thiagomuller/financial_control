@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Transaction, PaginatedResponse } from '../models/models';
+import { Transaction, CreateTransactionRequest, PaginatedResponse } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class TransactionService {
@@ -13,14 +13,7 @@ export class TransactionService {
     return this.http.get<PaginatedResponse<Transaction>>('/api/transactions', { params });
   }
 
-  create(data: {
-    name: string;
-    value: number;
-    operation: 'add' | 'subtract';
-    bank_account_id: string;
-    date: string;
-    tag_ids: string[];
-  }): Observable<Transaction> {
+  create(data: CreateTransactionRequest): Observable<Transaction> {
     return this.http.post<Transaction>('/api/transactions', data);
   }
 
