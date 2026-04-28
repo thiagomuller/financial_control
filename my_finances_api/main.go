@@ -26,6 +26,11 @@ func main() {
 		os.Exit(1)
 	}
 
+	if err := database.SeedSystemTags(db); err != nil {
+		slog.Error("failed to seed system tags", "error", err)
+		os.Exit(1)
+	}
+
 	scheduler.Run(db)
 
 	router := handlers.NewRouter(db, cfg)

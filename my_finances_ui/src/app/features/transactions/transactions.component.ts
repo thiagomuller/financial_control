@@ -5,11 +5,12 @@ import { TransactionService } from '../../core/services/transaction.service';
 import { BankAccountService } from '../../core/services/bank-account.service';
 import { TagService } from '../../core/services/tag.service';
 import { Transaction, BankAccount, Tag, PaginatedResponse } from '../../core/models/models';
+import { TagAutocompleteComponent } from '../../shared/components/tag-autocomplete/tag-autocomplete.component';
 
 @Component({
   selector: 'app-transactions',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, TagAutocompleteComponent],
   templateUrl: './transactions.component.html',
   styleUrl: './transactions.component.css',
 })
@@ -25,6 +26,7 @@ export class TransactionsComponent implements OnInit {
   loading = true;
   showForm = false;
   error = '';
+  warning = '';
   page = 1;
   limit = 20;
 
@@ -35,6 +37,9 @@ export class TransactionsComponent implements OnInit {
     bank_account_id: ['', Validators.required],
     date: [new Date().toISOString().slice(0, 10), Validators.required],
     tag_ids: [[] as string[]],
+    is_repeatable: [false],
+    repeatable_day: [1, [Validators.min(1), Validators.max(31)]],
+    repeatable_type: ['income'],
   });
 
   ngOnInit(): void {
@@ -54,22 +59,47 @@ export class TransactionsComponent implements OnInit {
     });
   }
 
+  get isRepeatable(): boolean {
+    return !!this.form.controls.is_repeatable.value;
+  }
+
+  onTagSelectionChange(ids: string[]): void {
+    this.form.controls.tag_ids.setValue(ids);
+  }
+
   create(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
+
+    let operation: 'add' | 'subtract' = v.operation as 'add' | 'subtract';
+    if (v.is_repeatable) {
+      operation = v.repeatable_type === 'income' ? 'add' : 'subtract';
+    }
+
     this.svc
       .create({
         name: v.name!,
         value: v.value!,
-        operation: v.operation as 'add' | 'subtract',
+        operation,
         bank_account_id: v.bank_account_id!,
         date: new Date(v.date!).toISOString(),
         tag_ids: this.form.controls.tag_ids.value ?? [],
+        is_repeatable: v.is_repeatable ?? false,
+        repeatable_day: v.is_repeatable ? (v.repeatable_day ?? null) : null,
       })
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.showForm = false;
-          this.form.reset({ operation: 'add', date: new Date().toISOString().slice(0, 10) });
+          this.form.reset({
+            operation: 'add',
+            date: new Date().toISOString().slice(0, 10),
+            is_repeatable: false,
+            repeatable_day: 1,
+            repeatable_type: 'income',
+          });
+          if (res.projected_balance_warning) {
+            this.warning = res.projected_balance_warning;
+          }
           this.load();
         },
         error: (e) => (this.error = e.error?.error ?? 'Failed to create'),
@@ -92,17 +122,5 @@ export class TransactionsComponent implements OnInit {
     for (let i = Math.max(1, this.page - 2); i <= Math.min(this.result.pages, this.page + 2); i++)
       range.push(i);
     return range;
-  }
-
-  isTagSelected(id: string): boolean {
-    return (this.form.controls.tag_ids.value ?? []).includes(id);
-  }
-
-  toggleTag(id: string): void {
-    const current = this.form.controls.tag_ids.value ?? [];
-    const updated = current.includes(id)
-      ? current.filter((t: string) => t !== id)
-      : [...current, id];
-    this.form.controls.tag_ids.setValue(updated);
   }
 }

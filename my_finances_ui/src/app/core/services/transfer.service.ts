@@ -1,7 +1,7 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient, HttpParams } from '@angular/common/http';
 import { Observable } from 'rxjs';
-import { Transfer, PaginatedResponse } from '../models/models';
+import { Transfer, CreateTransferRequest, PaginatedResponse } from '../models/models';
 
 @Injectable({ providedIn: 'root' })
 export class TransferService {
@@ -12,14 +12,7 @@ export class TransferService {
     return this.http.get<PaginatedResponse<Transfer>>('/api/transfers', { params });
   }
 
-  create(data: {
-    name: string;
-    value: number;
-    source_account_id: string;
-    target_account_id: string;
-    date: string;
-    tag_ids: string[];
-  }): Observable<Transfer> {
+  create(data: CreateTransferRequest): Observable<Transfer> {
     return this.http.post<Transfer>('/api/transfers', data);
   }
 

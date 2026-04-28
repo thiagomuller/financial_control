@@ -180,21 +180,21 @@ func (h *Handler) getBankAccountStatement(w http.ResponseWriter, r *http.Request
 	var total int
 	h.db.QueryRowContext(r.Context(),
 		`SELECT COUNT(*) FROM (
-		   SELECT id FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+		   SELECT id FROM transactions WHERE bank_account_id=$1 AND user_id=$2 AND is_repeatable=false
 		   UNION ALL
-		   SELECT id FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2
+		   SELECT id FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2 AND is_repeatable=false
 		 ) combined`,
 		id, userID,
 	).Scan(&total)
 
 	rows, err := h.db.QueryContext(r.Context(),
 		`SELECT id, name, value, operation, date, 'transaction' AS kind
-		   FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+		   FROM transactions WHERE bank_account_id=$1 AND user_id=$2 AND is_repeatable=false
 		 UNION ALL
 		 SELECT id, name, value,
 		   CASE WHEN source_account_id=$1 THEN 'subtract' ELSE 'add' END,
 		   date, 'transfer' AS kind
-		   FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2
+		   FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2 AND is_repeatable=false
 		 ORDER BY date DESC LIMIT $3 OFFSET $4`,
 		id, userID, limit, offset,
 	)
@@ -234,16 +234,16 @@ func (h *Handler) getBankAccountStatement(w http.ResponseWriter, r *http.Request
 	writeJSON(w, http.StatusOK, resp)
 }
 
-// buildUpcoming returns upcoming income, expense, and goal transfer items for the next 90 days.
 func (h *Handler) buildUpcoming(r *http.Request, accountID, userID string) []models.UpcomingItem {
 	var items []models.UpcomingItem
 	now := time.Now()
-	horizon := now.AddDate(0, 3, 0) // 3 months out
+	horizon := now.AddDate(0, 3, 0)
 
-	// Incomes
+	// Repeatable subtract transactions (expenses)
 	rows, err := h.db.QueryContext(r.Context(),
-		`SELECT name, value, repeatable_day FROM incomes
-		 WHERE bank_account_id=$1 AND user_id=$2`, accountID, userID,
+		`SELECT name, value, repeatable_day FROM transactions
+		 WHERE bank_account_id=$1 AND user_id=$2 AND is_repeatable=true AND operation='subtract'`,
+		accountID, userID,
 	)
 	if err == nil {
 		defer rows.Close()
@@ -254,17 +254,18 @@ func (h *Handler) buildUpcoming(r *http.Request, accountID, userID string) []mod
 			rows.Scan(&name, &value, &day)
 			for _, d := range nextOccurrences(day, now, horizon) {
 				items = append(items, models.UpcomingItem{
-					Type: "income", Name: name, Value: value,
-					Operation: "add", Date: d, Source: name,
+					Type: "expense", Name: name, Value: value,
+					Operation: "subtract", Date: d, Source: name,
 				})
 			}
 		}
 	}
 
-	// Expenses
+	// Repeatable add transactions (incomes)
 	rows2, err := h.db.QueryContext(r.Context(),
-		`SELECT name, value, repeatable_day FROM expenses
-		 WHERE bank_account_id=$1 AND user_id=$2`, accountID, userID,
+		`SELECT name, value, repeatable_day FROM transactions
+		 WHERE bank_account_id=$1 AND user_id=$2 AND is_repeatable=true AND operation='add'`,
+		accountID, userID,
 	)
 	if err == nil {
 		defer rows2.Close()
@@ -275,8 +276,8 @@ func (h *Handler) buildUpcoming(r *http.Request, accountID, userID string) []mod
 			rows2.Scan(&name, &value, &day)
 			for _, d := range nextOccurrences(day, now, horizon) {
 				items = append(items, models.UpcomingItem{
-					Type: "expense", Name: name, Value: value,
-					Operation: "subtract", Date: d, Source: name,
+					Type: "income", Name: name, Value: value,
+					Operation: "add", Date: d, Source: name,
 				})
 			}
 		}
@@ -319,13 +320,10 @@ func (h *Handler) buildUpcoming(r *http.Request, accountID, userID string) []mod
 	return items
 }
 
-// nextOccurrences returns dates matching the given day-of-month from now up to horizon.
 func nextOccurrences(day int, from, until time.Time) []time.Time {
 	var out []time.Time
-	// Start from current month, find first occurrence on or after `from`
 	y, m, _ := from.Date()
 	for t := time.Date(y, m, 1, 0, 0, 0, 0, time.UTC); !t.After(until); t = t.AddDate(0, 1, 0) {
-		// Clamp day to last day of month
 		lastDay := time.Date(t.Year(), t.Month()+1, 0, 0, 0, 0, 0, time.UTC).Day()
 		d := day
 		if d > lastDay {

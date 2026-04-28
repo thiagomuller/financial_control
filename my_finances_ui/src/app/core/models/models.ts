@@ -27,6 +27,7 @@ export interface Tag {
   user_id: string;
   name: string;
   color: string | null;
+  is_system: boolean;
   created_at: string;
   updated_at: string;
 }
@@ -40,8 +41,22 @@ export interface Transaction {
   operation: 'add' | 'subtract';
   date: string;
   tags: Tag[];
+  is_repeatable: boolean;
+  repeatable_day: number | null;
+  projected_balance_warning?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateTransactionRequest {
+  name: string;
+  value: number;
+  operation: 'add' | 'subtract';
+  bank_account_id: string;
+  date: string;
+  tag_ids: string[];
+  is_repeatable?: boolean;
+  repeatable_day?: number | null;
 }
 
 export interface Transfer {
@@ -53,8 +68,22 @@ export interface Transfer {
   value: number;
   date: string;
   tags: Tag[];
+  is_repeatable: boolean;
+  repeatable_day: number | null;
+  projected_balance_warning?: string;
   created_at: string;
   updated_at: string;
+}
+
+export interface CreateTransferRequest {
+  name: string;
+  value: number;
+  source_account_id: string;
+  target_account_id: string;
+  date: string;
+  tag_ids: string[];
+  is_repeatable?: boolean;
+  repeatable_day?: number | null;
 }
 
 export interface Goal {
@@ -67,30 +96,6 @@ export interface Goal {
   end_date: string;
   interval_days: number;
   target_value: number;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Income {
-  id: string;
-  user_id: string;
-  bank_account_id: string;
-  name: string;
-  value: number;
-  repeatable_day: number;
-  last_executed_at: string | null;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface Expense {
-  id: string;
-  user_id: string;
-  bank_account_id: string;
-  name: string;
-  value: number;
-  repeatable_day: number;
-  last_executed_at: string | null;
   created_at: string;
   updated_at: string;
 }
@@ -109,7 +114,7 @@ export interface TagStat {
 }
 
 export interface UpcomingItem {
-  type: 'income' | 'expense' | 'goal_transfer';
+  type: 'goal_transfer' | 'repeatable_transaction' | 'repeatable_transfer' | string;
   name: string;
   value: number;
   operation: 'add' | 'subtract';

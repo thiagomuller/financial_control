@@ -8,11 +8,11 @@
 
 A self-hosted personal finance manager. It tracks:
 - **Bank accounts** — balances, icons, statements
-- **Transactions** — categorised income/expense entries
+- **Transactions** — categorised add/subtract entries per account
 - **Transfers** — balance moves between accounts
-- **Tags** — user-defined labels for transactions and transfers
+- **Tags** — user-defined and system-provided labels for transactions and transfers
 - **Goals** — savings targets distributed over a time interval
-- **Recurring incomes/expenses** — automatically posted on a given day each month
+- **Repeatable transactions/transfers** — templates that the scheduler automatically posts on a chosen day each month
 - **Dashboard** — account summaries, tag statistics, upcoming items
 
 ## Tech Stack
@@ -54,17 +54,6 @@ podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r pod
 podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman rm && \
 podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman rm && \
 podman-compose -f /home/$USER/financial_control/docker-compose.yml up -d
-```
-
-## Stopping the App
-```bash
-podman-compose -f /home/$USER/financial_control/docker-compose.yml down && \
-podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r podman stop && \
-podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman stop && \
-podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman stop && \
-podman ps -a --filter "name=my-finances-ui" --format "{{.Names}}" | xargs -r podman rm && \
-podman ps -a --filter "name=my-finances-api" --format "{{.Names}}" | xargs -r podman rm && \
-podman ps -a --filter "name=my-finances-db" --format "{{.Names}}" | xargs -r podman rm 
 ```
 
 > Replace podman with docker, in case you're using docker as the container engine

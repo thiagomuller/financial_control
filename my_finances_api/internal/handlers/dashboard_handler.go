@@ -35,12 +35,12 @@ func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 	for _, account := range accounts {
 		feedRows, err := h.db.QueryContext(r.Context(),
 			`SELECT id, name, value, operation, date, 'transaction' AS kind
-			   FROM transactions WHERE bank_account_id=$1 AND user_id=$2
+			   FROM transactions WHERE bank_account_id=$1 AND user_id=$2 AND is_repeatable=false
 			 UNION ALL
 			 SELECT id, name, value,
 			   CASE WHEN source_account_id=$1 THEN 'subtract' ELSE 'add' END,
 			   date, 'transfer' AS kind
-			   FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2
+			   FROM transfers WHERE (source_account_id=$1 OR target_account_id=$1) AND user_id=$2 AND is_repeatable=false
 			 ORDER BY date DESC LIMIT 3`,
 			account.ID, userID,
 		)
@@ -58,7 +58,7 @@ func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 		}
 
 		tagRows, _ := h.db.QueryContext(r.Context(),
-			`SELECT t.id, t.user_id, t.name, t.color, t.created_at, t.updated_at, COUNT(tt.tag_id) AS cnt
+			`SELECT t.id, t.user_id, t.name, t.color, t.is_system, t.created_at, t.updated_at, COUNT(tt.tag_id) AS cnt
 			 FROM tags t
 			 JOIN transaction_tags tt ON tt.tag_id = t.id
 			 JOIN transactions tx ON tx.id = tt.transaction_id
@@ -72,15 +72,16 @@ func (h *Handler) getDashboard(w http.ResponseWriter, r *http.Request) {
 			for tagRows.Next() {
 				var ts models.TagStat
 				tagRows.Scan(&ts.Tag.ID, &ts.Tag.UserID, &ts.Tag.Name, &ts.Tag.Color,
-					&ts.Tag.CreatedAt, &ts.Tag.UpdatedAt, &ts.Count)
+					&ts.Tag.IsSystem, &ts.Tag.CreatedAt, &ts.Tag.UpdatedAt, &ts.Count)
 				tagStats = append(tagStats, ts)
 			}
 		}
 
 		var upcoming []models.UpcomingItem
 		expRows, _ := h.db.QueryContext(r.Context(),
-			`SELECT name, value, repeatable_day FROM expenses
-			 WHERE bank_account_id=$1 AND user_id=$2`, account.ID, userID,
+			`SELECT name, value, repeatable_day FROM transactions
+			 WHERE bank_account_id=$1 AND user_id=$2 AND is_repeatable=true AND operation='subtract'`,
+			account.ID, userID,
 		)
 		if expRows != nil {
 			defer expRows.Close()

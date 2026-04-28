@@ -27,9 +27,10 @@ CREATE TABLE IF NOT EXISTS bank_accounts (
 
 CREATE TABLE IF NOT EXISTS tags (
     id         UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id    UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    user_id    UUID REFERENCES users(id) ON DELETE CASCADE,
     name       VARCHAR(100) NOT NULL,
     color      VARCHAR(7),
+    is_system  BOOLEAN NOT NULL DEFAULT FALSE,
     created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -42,6 +43,9 @@ CREATE TABLE IF NOT EXISTS transactions (
     value           NUMERIC(18,2) NOT NULL,
     operation       VARCHAR(10) NOT NULL CHECK (operation IN ('add', 'subtract')),
     date            TIMESTAMPTZ NOT NULL,
+    is_repeatable   BOOLEAN NOT NULL DEFAULT FALSE,
+    repeatable_day  INT CHECK (repeatable_day >= 1 AND repeatable_day <= 31),
+    last_executed_at TIMESTAMPTZ,
     created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -60,6 +64,9 @@ CREATE TABLE IF NOT EXISTS transfers (
     name              VARCHAR(255) NOT NULL,
     value             NUMERIC(18,2) NOT NULL,
     date              TIMESTAMPTZ NOT NULL,
+    is_repeatable     BOOLEAN NOT NULL DEFAULT FALSE,
+    repeatable_day    INT CHECK (repeatable_day >= 1 AND repeatable_day <= 31),
+    last_executed_at  TIMESTAMPTZ,
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
@@ -83,36 +90,29 @@ CREATE TABLE IF NOT EXISTS goals (
     created_at        TIMESTAMPTZ NOT NULL DEFAULT NOW(),
     updated_at        TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
+`
 
-CREATE TABLE IF NOT EXISTS incomes (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    bank_account_id UUID NOT NULL REFERENCES bank_accounts(id) ON DELETE CASCADE,
-    name            VARCHAR(255) NOT NULL,
-    value           NUMERIC(18,2) NOT NULL,
-    repeatable_day  INT NOT NULL CHECK (repeatable_day >= 1 AND repeatable_day <= 31),
-    last_executed_at TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
-
-CREATE TABLE IF NOT EXISTS expenses (
-    id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
-    user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
-    bank_account_id UUID NOT NULL REFERENCES bank_accounts(id) ON DELETE CASCADE,
-    name            VARCHAR(255) NOT NULL,
-    value           NUMERIC(18,2) NOT NULL,
-    repeatable_day  INT NOT NULL CHECK (repeatable_day >= 1 AND repeatable_day <= 31),
-    last_executed_at TIMESTAMPTZ,
-    created_at      TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-    updated_at      TIMESTAMPTZ NOT NULL DEFAULT NOW()
-);
+const alterations = `
+ALTER TABLE bank_accounts ALTER COLUMN icon_url TYPE TEXT;
+DO $$ BEGIN ALTER TABLE tags ALTER COLUMN user_id DROP NOT NULL; EXCEPTION WHEN OTHERS THEN NULL; END $$;
+ALTER TABLE tags ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_system_name ON tags(name) WHERE is_system=true;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_repeatable BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS repeatable_day INT CHECK (repeatable_day >= 1 AND repeatable_day <= 31);
+ALTER TABLE transactions ADD COLUMN IF NOT EXISTS last_executed_at TIMESTAMPTZ;
+ALTER TABLE transfers ADD COLUMN IF NOT EXISTS is_repeatable BOOLEAN NOT NULL DEFAULT FALSE;
+ALTER TABLE transfers ADD COLUMN IF NOT EXISTS repeatable_day INT CHECK (repeatable_day >= 1 AND repeatable_day <= 31);
+ALTER TABLE transfers ADD COLUMN IF NOT EXISTS last_executed_at TIMESTAMPTZ;
+DROP TABLE IF EXISTS expenses;
+DROP TABLE IF EXISTS incomes;
 `
 
 func RunMigrations(db *sql.DB) error {
 	if _, err := db.Exec(schema); err != nil {
 		return err
 	}
-	_, err := db.Exec(`ALTER TABLE bank_accounts ALTER COLUMN icon_url TYPE TEXT`)
-	return err
+	if _, err := db.Exec(alterations); err != nil {
+		return err
+	}
+	return nil
 }

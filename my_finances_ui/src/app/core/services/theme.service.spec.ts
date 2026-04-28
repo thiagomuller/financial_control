@@ -1,5 +1,6 @@
 import { TestBed } from '@angular/core/testing';
 import { ThemeService, ACCENT_PRESETS } from './theme.service';
+import { firstValueFrom } from 'rxjs';
 
 describe('ThemeService', () => {
   let service: ThemeService;
@@ -29,12 +30,10 @@ describe('ThemeService', () => {
     expect(document.documentElement.getAttribute('data-theme')).toBe('dark');
   });
 
-  it('isDark$ emits false for light theme', (done) => {
+  it('isDark$ emits false for light theme', async () => {
     service.init();
-    service.isDark$.subscribe((val) => {
-      expect(val).toBeFalse();
-      done();
-    });
+    const val = await firstValueFrom(service.isDark$);
+    expect(val).toBe(false);
   });
 
   it('toggleTheme() switches from light to dark', () => {
@@ -52,13 +51,11 @@ describe('ThemeService', () => {
     expect(localStorage.getItem('theme')).toBe('light');
   });
 
-  it('isDark$ emits true after toggling to dark', (done) => {
+  it('isDark$ emits true after toggling to dark', async () => {
     service.init();
     service.toggleTheme();
-    service.isDark$.subscribe((val) => {
-      expect(val).toBeTrue();
-      done();
-    });
+    const val = await firstValueFrom(service.isDark$);
+    expect(val).toBe(true);
   });
 
   it('setAccentColor() applies --primary CSS variable', () => {
@@ -74,13 +71,11 @@ describe('ThemeService', () => {
     expect(document.documentElement.style.getPropertyValue('--primary')).toBe('#e11d48');
   });
 
-  it('accentColor$ emits the current accent color', (done) => {
+  it('accentColor$ emits the current accent color', async () => {
     service.init();
     service.setAccentColor(ACCENT_PRESETS[2].value);
-    service.accentColor$.subscribe((color) => {
-      expect(color).toBe(ACCENT_PRESETS[2].value);
-      done();
-    });
+    const color = await firstValueFrom(service.accentColor$);
+    expect(color).toBe(ACCENT_PRESETS[2].value);
   });
 
   it('ACCENT_PRESETS has 6 colors', () => {

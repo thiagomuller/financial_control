@@ -5,11 +5,12 @@ import { TransferService } from '../../core/services/transfer.service';
 import { BankAccountService } from '../../core/services/bank-account.service';
 import { TagService } from '../../core/services/tag.service';
 import { Transfer, BankAccount, Tag, PaginatedResponse } from '../../core/models/models';
+import { TagAutocompleteComponent } from '../../shared/components/tag-autocomplete/tag-autocomplete.component';
 
 @Component({
   selector: 'app-transfers',
   standalone: true,
-  imports: [CommonModule, ReactiveFormsModule],
+  imports: [CommonModule, ReactiveFormsModule, TagAutocompleteComponent],
   templateUrl: './transfers.component.html',
   styleUrl: './transfers.component.css',
 })
@@ -25,6 +26,7 @@ export class TransfersComponent implements OnInit {
   loading = true;
   showForm = false;
   error = '';
+  warning = '';
   page = 1;
 
   form = this.fb.group({
@@ -34,6 +36,8 @@ export class TransfersComponent implements OnInit {
     target_account_id: ['', Validators.required],
     date: [new Date().toISOString().slice(0, 10), Validators.required],
     tag_ids: [[] as string[]],
+    is_repeatable: [false],
+    repeatable_day: [1, [Validators.min(1), Validators.max(31)]],
   });
 
   ngOnInit(): void {
@@ -53,6 +57,14 @@ export class TransfersComponent implements OnInit {
     });
   }
 
+  get isRepeatable(): boolean {
+    return !!this.form.controls.is_repeatable.value;
+  }
+
+  onTagSelectionChange(ids: string[]): void {
+    this.form.controls.tag_ids.setValue(ids);
+  }
+
   create(): void {
     if (this.form.invalid) return;
     const v = this.form.value;
@@ -64,11 +76,20 @@ export class TransfersComponent implements OnInit {
         target_account_id: v.target_account_id!,
         date: new Date(v.date!).toISOString(),
         tag_ids: this.form.controls.tag_ids.value ?? [],
+        is_repeatable: v.is_repeatable ?? false,
+        repeatable_day: v.is_repeatable ? (v.repeatable_day ?? null) : null,
       })
       .subscribe({
-        next: () => {
+        next: (res) => {
           this.showForm = false;
-          this.form.reset({ date: new Date().toISOString().slice(0, 10) });
+          this.form.reset({
+            date: new Date().toISOString().slice(0, 10),
+            is_repeatable: false,
+            repeatable_day: 1,
+          });
+          if (res.projected_balance_warning) {
+            this.warning = res.projected_balance_warning;
+          }
           this.load();
         },
         error: (e) => (this.error = e.error?.error ?? 'Failed to create transfer'),

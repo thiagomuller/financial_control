@@ -5,6 +5,11 @@
   </button>
 </div>
 
+<div class="warning-banner" *ngIf="warning">
+  {{ warning }}
+  <button type="button" class="close-warning" (click)="warning = ''">×</button>
+</div>
+
 <div class="card form-card" *ngIf="showForm">
   <form [formGroup]="form" (ngSubmit)="create()">
     <div class="form-row">
@@ -34,6 +39,26 @@
         </select>
       </div>
     </div>
+    <div class="form-row">
+      <div class="form-group checkbox-group">
+        <label>
+          <input type="checkbox" formControlName="is_repeatable" />
+          Repeatable
+        </label>
+      </div>
+      <div class="form-group" *ngIf="isRepeatable">
+        <label>Day of month (1–31)</label>
+        <input formControlName="repeatable_day" type="number" min="1" max="31" />
+      </div>
+    </div>
+    <div class="form-group" *ngIf="tags.length">
+      <label>Tags</label>
+      <app-tag-autocomplete
+        [tags]="tags"
+        [selectedIds]="form.controls.tag_ids.value ?? []"
+        (selectionChange)="onTagSelectionChange($event)"
+      ></app-tag-autocomplete>
+    </div>
     <div class="error-msg" *ngIf="error">{{ error }}</div>
     <button class="btn btn-primary" type="submit" [disabled]="form.invalid">Transfer</button>
   </form>
@@ -50,16 +75,28 @@
         <th>From</th>
         <th>To</th>
         <th>Amount</th>
+        <th>Tags</th>
         <th></th>
       </tr>
     </thead>
     <tbody>
       <tr *ngFor="let t of result.data">
         <td>{{ t.date | date: 'MMM d, y' }}</td>
-        <td>{{ t.name }}</td>
+        <td>
+          {{ t.name }}
+          <span class="badge badge-recurring" *ngIf="t.is_repeatable">Recurring</span>
+        </td>
         <td>{{ accountName(t.source_account_id) }}</td>
         <td>{{ accountName(t.target_account_id) }}</td>
         <td class="amount-subtract">{{ t.value | currency: 'BRL' : 'symbol' : '1.2-2' }}</td>
+        <td>
+          <span
+            *ngFor="let tag of t.tags"
+            class="tag-chip"
+            [style.background]="tag.color || '#64748b'"
+            >{{ tag.name }}</span
+          >
+        </td>
         <td><button class="btn btn-danger btn-sm" (click)="delete(t.id)">Delete</button></td>
       </tr>
     </tbody>

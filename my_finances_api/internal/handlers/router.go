@@ -27,9 +27,7 @@ func NewRouter(db *sql.DB, cfg *config.Config) http.Handler {
 	mux.HandleFunc("GET /api/users/me", protect(h.getMe))
 	mux.HandleFunc("PUT /api/users/me", protect(h.updateMe))
 
-	// Bank accounts — statement must be registered before /{id} so the mux
-	// keeps it distinct (Go 1.22 pattern matching handles this correctly since
-	// the segment counts differ, but explicit ordering avoids any ambiguity).
+	// Bank accounts
 	mux.HandleFunc("GET /api/bank-accounts/{id}/statement", protect(h.getBankAccountStatement))
 	mux.HandleFunc("GET /api/bank-accounts", protect(h.listBankAccounts))
 	mux.HandleFunc("POST /api/bank-accounts", protect(h.createBankAccount))
@@ -60,18 +58,6 @@ func NewRouter(db *sql.DB, cfg *config.Config) http.Handler {
 	mux.HandleFunc("POST /api/goals", protect(h.createGoal))
 	mux.HandleFunc("PUT /api/goals/{id}", protect(h.updateGoal))
 	mux.HandleFunc("DELETE /api/goals/{id}", protect(h.deleteGoal))
-
-	// Incomes
-	mux.HandleFunc("GET /api/incomes", protect(h.listIncomes))
-	mux.HandleFunc("POST /api/incomes", protect(h.createIncome))
-	mux.HandleFunc("PUT /api/incomes/{id}", protect(h.updateIncome))
-	mux.HandleFunc("DELETE /api/incomes/{id}", protect(h.deleteIncome))
-
-	// Expenses
-	mux.HandleFunc("GET /api/expenses", protect(h.listExpenses))
-	mux.HandleFunc("POST /api/expenses", protect(h.createExpense))
-	mux.HandleFunc("PUT /api/expenses/{id}", protect(h.updateExpense))
-	mux.HandleFunc("DELETE /api/expenses/{id}", protect(h.deleteExpense))
 
 	// Dashboard
 	mux.HandleFunc("GET /api/dashboard", protect(h.getDashboard))

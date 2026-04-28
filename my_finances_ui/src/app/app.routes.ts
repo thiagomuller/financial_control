@@ -57,16 +57,4 @@ export const routes: Routes = [
     canActivate: [authGuard],
     loadComponent: () => import('./features/goals/goals.component').then((m) => m.GoalsComponent),
   },
-  {
-    path: 'incomes',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/incomes/incomes.component').then((m) => m.IncomesComponent),
-  },
-  {
-    path: 'expenses',
-    canActivate: [authGuard],
-    loadComponent: () =>
-      import('./features/expenses/expenses.component').then((m) => m.ExpensesComponent),
-  },
 ];

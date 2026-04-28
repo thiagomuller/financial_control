@@ -1,0 +1,26 @@
+<div class="autocomplete-wrapper">
+  <div class="chips-row">
+    <span
+      *ngFor="let tag of selectedTags"
+      class="tag-chip chip-removable"
+      [style.background]="tag.color || '#64748b'"
+    >
+      {{ tag.name }}
+      <button type="button" class="chip-remove" (click)="remove(tag.id)">×</button>
+    </span>
+    <input
+      class="autocomplete-input"
+      type="text"
+      [(ngModel)]="query"
+      (input)="onInput()"
+      (focus)="onInput()"
+      (blur)="onBlur()"
+      placeholder="Search tags…"
+    />
+  </div>
+  <ul class="dropdown" *ngIf="showDropdown && filteredTags.length > 0">
+    <li *ngFor="let tag of filteredTags" (mousedown)="select(tag)">
+      <span class="tag-chip" [style.background]="tag.color || '#64748b'">{{ tag.name }}</span>
+    </li>
+  </ul>
+</div>

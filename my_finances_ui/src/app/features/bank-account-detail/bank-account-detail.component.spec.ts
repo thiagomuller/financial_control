@@ -5,6 +5,7 @@ import { provideRouter, ActivatedRoute } from '@angular/router';
 import { provideHttpClient } from '@angular/common/http';
 import { of } from 'rxjs';
 import { StatementResponse, FeedEntry } from '../../core/models/models';
+import { vi } from 'vitest';
 
 const mockStatement: StatementResponse = {
   account: {
@@ -23,18 +24,17 @@ const mockStatement: StatementResponse = {
 describe('BankAccountDetailComponent', () => {
   let component: BankAccountDetailComponent;
   let fixture: ComponentFixture<BankAccountDetailComponent>;
-  let bankSpy: jasmine.SpyObj<BankAccountService>;
+  let mockStatement_: ReturnType<typeof vi.fn>;
 
   beforeEach(async () => {
-    bankSpy = jasmine.createSpyObj('BankAccountService', ['statement', 'update']);
-    bankSpy.statement.and.returnValue(of(mockStatement));
+    mockStatement_ = vi.fn().mockReturnValue(of(mockStatement));
 
     await TestBed.configureTestingModule({
       imports: [BankAccountDetailComponent],
       providers: [
         provideRouter([]),
         provideHttpClient(),
-        { provide: BankAccountService, useValue: bankSpy },
+        { provide: BankAccountService, useValue: { statement: mockStatement_, update: vi.fn() } },
         { provide: ActivatedRoute, useValue: { snapshot: { paramMap: { get: () => 'acc1' } } } },
       ],
     }).compileComponents();
@@ -49,9 +49,9 @@ describe('BankAccountDetailComponent', () => {
   });
 
   it('should load statement on init', () => {
-    expect(bankSpy.statement).toHaveBeenCalledWith('acc1', 1, 20);
+    expect(mockStatement_).toHaveBeenCalledWith('acc1', 1, 20);
     expect(component.statement).toEqual(mockStatement);
-    expect(component.loading).toBeFalse();
+    expect(component.loading).toBe(false);
   });
 
   it('pageNumbers returns empty array when no statement', () => {
