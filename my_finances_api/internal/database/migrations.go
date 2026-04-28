@@ -35,8 +35,6 @@ CREATE TABLE IF NOT EXISTS tags (
     updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
 );
 
-CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_system_name ON tags(name) WHERE is_system=true;
-
 CREATE TABLE IF NOT EXISTS transactions (
     id              UUID PRIMARY KEY DEFAULT gen_random_uuid(),
     user_id         UUID NOT NULL REFERENCES users(id) ON DELETE CASCADE,
@@ -98,6 +96,7 @@ const alterations = `
 ALTER TABLE bank_accounts ALTER COLUMN icon_url TYPE TEXT;
 DO $$ BEGIN ALTER TABLE tags ALTER COLUMN user_id DROP NOT NULL; EXCEPTION WHEN OTHERS THEN NULL; END $$;
 ALTER TABLE tags ADD COLUMN IF NOT EXISTS is_system BOOLEAN NOT NULL DEFAULT FALSE;
+CREATE UNIQUE INDEX IF NOT EXISTS idx_tags_system_name ON tags(name) WHERE is_system=true;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS is_repeatable BOOLEAN NOT NULL DEFAULT FALSE;
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS repeatable_day INT CHECK (repeatable_day >= 1 AND repeatable_day <= 31);
 ALTER TABLE transactions ADD COLUMN IF NOT EXISTS last_executed_at TIMESTAMPTZ;
